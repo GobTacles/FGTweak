@@ -1,15 +1,19 @@
 // 2026-04 fgsmodlists.com FGTweak
-
 #include "PCH.h"
 #include "fg_logutil.h" // myprint, myprint_init
 
-class cFGTweakMain
+class cFGTweakMain :
+	public RE::BSTEventSink<RE::InputEvent*>, // hotkey
+	public RE::BSTEventSink<SKSE::CrosshairRefEvent> // crosshair over object
 {
 public:
     cFGTweakMain() {}
     ~cFGTweakMain() {}
 
+    cFGTweakMain* GetEventSink () { return this; }
+
     const std::string sVersionInfo = ".v01";
+	const uint32_t SCANCODE_test = 65; // f1=59.. f7=65  f11=87 
 
     // kDataLoaded
     void OnDataLoaded()
@@ -23,8 +27,8 @@ public:
     // MessagingInterface listener : input=hotkeys, kDataLoaded
     void OnMsgInterfaceMsg (SKSE::MessagingInterface::Message *message)
     {
-        // if (message->type == SKSE::MessagingInterface::kInputLoaded)
-            // RE::BSInputDeviceManager::GetSingleton()->AddEventSink(this);
+        if (message->type == SKSE::MessagingInterface::kInputLoaded)
+            RE::BSInputDeviceManager::GetSingleton()->AddEventSink(this);
         if (message->type == SKSE::MessagingInterface::kDataLoaded) OnDataLoaded();
         if (message->type == SKSE::MessagingInterface::kPostPostLoad) OnPostPostLoad();
     }
@@ -32,12 +36,70 @@ public:
 	// kPostPostLoad
     void OnPostPostLoad ()
     {
-    } 
+    }
+    
+    // hotkeys
+    void OnButtonDown(RE::ButtonEvent* button)
+    {
+        auto dxScanCode = button->GetIDCode();
+        // myprint("OnButtonDown {}", dxScanCode);
+        if (dxScanCode == SCANCODE_test) OnKey_Test();
+    }
+
+    void OnKey_Test ()
+    {
+        myprint("FGTweak.OnKey_Test");
+    }
+
+// ***** EventSink api
+    
+    // InputEvent
+	RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const* eventPtr, RE::BSTEventSource<RE::InputEvent*>* eSrc)
+	{
+        RE::BSEventNotifyControl res = RE::BSEventNotifyControl::kContinue;
+        if (res == RE::BSEventNotifyControl::kContinue && eventPtr)
+        {
+            auto* e = *eventPtr;
+            if (e && e->GetEventType() == RE::INPUT_EVENT_TYPE::kButton) {
+                auto* button = e->AsButtonEvent();
+                if (button->IsDown()) OnButtonDown(button); // IsDown = IsPressed && HeldDuration=0
+            }
+        }
+		return res;
+	}
+
+    // CrosshairRefEvent
+	RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* e, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
+	{
+        // WARNING GetActorBase() returns the base of the actor, not the instance.
+        // Actor/Character: What you encounter in game. Bandit Thug in Valtheim Towers, etc.
+        // Actorbase: The base that all Bandit Thugs in the game pull from.
+
+        #if 0
+        RE::TESObjectREFR* res = e ? e->crosshairRef.get() : nullptr;
+		if (auto o = e->crosshairRef) {
+            if (auto* p = o->GetBaseObject()) { // TESBoundObject WARNING: BaseObject is the "class" (like all bandits) rather than the "instance" (this particular bandit)
+                res = p;
+                // myprint("CrosshairRefEvent GetName={} GetFormID={}",p->GetName(),p->GetFormID());
+            }
+		}
+        #endif
+		return RE::BSEventNotifyControl::kContinue;
+	}
     
 // ***** utils
 
     template <typename T>
     const T* my_error_if_null (const char* name, const T* p) { if (!p) myprint("{}=null",name); return p; };
+
+// ***** papyrus 
+
+    static std::string Papyrus_GetVersion(RE::StaticFunctionTag*) { return "FGTweak.v01"; }
+    static bool MyRegisterPapyrus(RE::BSScript::IVirtualMachine *vm)
+    {
+        vm->RegisterFunction("GetVersion","FGTweak",Papyrus_GetVersion);
+        return true;
+    }
 
 // ***** registry
 
@@ -77,6 +139,10 @@ public:
         r.skse.delay            = my_error_if_null("skse.delay"         ,SKSE::GetDelayFunctorManager()); // SKSEDelayFunctorManager*
         r.skse.oregistry        = my_error_if_null("skse.oregistry"     ,SKSE::GetObjectRegistry()); // SKSEObjectRegistry*
         r.skse.persist          = my_error_if_null("skse.persist"       ,SKSE::GetPersistentObjectStorage()); // SKSEPersistentObjectStorage*
+
+        if (r.skse.papyrus) r.skse.papyrus->Register(MyRegisterPapyrus);
+        
+	    if (auto* src = SKSE::GetCrosshairRefEventSource()) src->AddEventSink(GetEventSink()); else myprint("GetCrosshairRefEventSource=null?0");
 
 	    r.skse.message->RegisterListener([](SKSE::MessagingInterface::Message *message) {
             gFGTweakMain.OnMsgInterfaceMsg(message);
