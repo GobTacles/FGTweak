@@ -1,29 +1,32 @@
-# SKSE plugin
+# What is it?
 
-C++ SKSE plugin to tweak Skyrim
+- a SKSE plugin for Skyrim modding with c++ code
 
 # What does it do?
 
-- first goal 2026-04 is reminding a user to finish the setup guide in the starting realm.
+- first goal is reminding the player to finish the setup guide in the starting area.
 
 # developer quickstart 
 
 - install visual studio 2022 (free community edition), only needed for commandline compiler tools, see Requirements
+- install cmake, see Requirements
 - install vcpkg, needed for requirements like "CommonLibSSE NG", see Requirements
 - open vscode (visual studio code), our main development IDE
-- install vscode extension "CMake Tools" (by microsoft)
-- git clone from the project website (green code button top right, HTTPS)
+- in the bar on the left under extensions install "CMake Tools" (by microsoft) and close+reopen vscode
+- on the vscode welcome page, click "Clone Git Repository" and enter https://github.com/GobTacles/FGTweak.git
 - if it asks for debug or release in the top center box, choose release for now
-- it should start downloading and compiling the dependencies
+- it should start downloading and compiling "CommonLibSSE NG", can take a few minutes
 - at the bottom of the window is a gear icon -> that builds the project and creates a DLL file
 - you can manuall copy the dll from build/release/ to mods\FGTweak\SKSE\Plugins  (mo2 .. menu : new empty mod FGTeak)
 - or set a windows environment var SKYRIM_MODS_FOLDER e.g. `C:\game\SkyrimModpacks\YourModList\mods`
 - with that it would be automatically copied to the mod folder
-- if the game is running, the copy will fail
+- note that if the game is running, the copy will fail
 
 # Requirements
 
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) (_the free Community edition_)
+- [`cmake`](https://cmake.org/download/)
+- [VS Code](https://code.visualstudio.com/)
 - [`vcpkg`](https://github.com/microsoft/vcpkg)
   - 1. Clone the repository using git OR [download it as a .zip](https://github.com/microsoft/vcpkg/archive/refs/heads/master.zip)
   - 2. Go into the `vcpkg` folder and double-click on `bootstrap-vcpkg.bat`
@@ -38,18 +41,18 @@ C++ SKSE plugin to tweak Skyrim
 
 [CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSSE-NG) is a fork of the popular [powerof3 fork](https://github.com/powerof3/CommonLibSSE) of the _original_ `CommonLibSSE` library created by [Ryan McKenzie](https://github.com/Ryan-rsm-McKenzie) in [2018](https://github.com/Ryan-rsm-McKenzie/CommonLibSSE/commit/224773c424bdb8e36c761810cdff0fcfefda5f4a).
 
-## Opening the project
+# Opening the project in VS Code
 
 Once you have Visual Studio 2022 installed, you can open this folder in basically any C++ editor, e.g. [VS Code](https://code.visualstudio.com/) 
-- > _for VS Code, if you are not automatically prompted to install the [C++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) and [CMake Tools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools) extensions, please install those and then close VS Code and then open this project as a folder in VS Code_
+- _for VS Code, if you are not automatically prompted to install the 
+- [C++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) 
+- [CMake Tools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools) 
+- extensions, please install those and then close VS Code and then open this project as a folder in VS Code_
+- You may need to click `OK` on a few windows, but the project should automatically run CMake!
 
-You may need to click `OK` on a few windows, but the project should automatically run CMake!
+# SKYRIM_MODS_FOLDER
 
-It will _automatically_ download [CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSSE-NG) and everything you need to get started making your new plugin!
-
-# Project setup
-
-By default, when this project compiles it will output a `.dll` for your SKSE plugin into the `build/` folder.
+By default, when this project compiles it will output a `.dll` for your SKSE plugin into the `build/release/` folder.
 
 If you want to configure this project to output your plugin files
 into your "`mods`" folder:  
@@ -63,13 +66,8 @@ Reboot your PC after changing environment variables.
 # commonlibsse-ng update
 
 vcpkg-configuration.json
-Update the baseline to the latest commit from the above repo. 6309841a.. = 2023-05-13 = latest on colored glass as of 2024-10
+Update the baseline to the latest commit from the above repo. 6309841a.. = 2023-05-13 = latest on colored glass as of 2026-04
 see https://github.com/CharmedBaryon/CommonLibSSE-NG?tab=readme-ov-file#use
-
-# tweaks
-
-- to enable searching commonlib HEADERS (not source) but exclude most other build/ stuff :
-- copy .vscode/settings.json.dist to .vscode/settings.json
 
 # misc
 
