@@ -57,6 +57,10 @@ public:
         if (dxScanCode == SCANCODE_test) OnKey_Test();
     }
 
+    const RE::NiPoint3 ROL_spawn_pos{5575.0f,-17411.0f,4683.0f}; // z+140 = in the air during jump so player can fall down to the ground vs height
+    const float dist_ROL_area = 2000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet)
+    const float dist_ROL_cage = 200.0f; // 2 steps ~ 120
+    
     void OnKey_Test ()
     {
         logger.info("OnKey_Test");
@@ -72,11 +76,20 @@ public:
         logger.info("niav={}",niav?"valid":"null");
         if (niav)
         {
-            logger.info("bound={}",str(niav->worldBound)); 
+            auto p0 = ROL_spawn_pos;
+            RE::NiPoint3 pos = niav->worldBound.center;
+            float d = pos.GetDistance(p0);
+            bool in_rol = d < dist_ROL_area;
+            bool in_cage = d < dist_ROL_cage;
+            logger.info("bound={} d={} in_rol={} in_cage={}",str(niav->worldBound),d,in_rol,in_cage); 
             // ROL charcreate during: 5576.5,-17423.7,4517.7,r=127.7 scene=null
             // ROL charcreate after:  5580.3,-17413.1,4575.9,r=1 (firstperson)
             // ROL charcreate after:  5580.5,-17421.6,4563.7,r=75.7 (3rdperson)
             // ROL walk 2 steps    :  5582.7,-17542.4,4548.7,r=74.5 (3rdperson) , x+-2 y+-120 z+-15
+            if (in_rol && !in_cage)
+            {
+                actor->SetPosition(p0, true);
+            }
         }
     }
 
