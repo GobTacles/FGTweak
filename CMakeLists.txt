@@ -15,7 +15,7 @@ project(FGTweak VERSION 0.1.0 LANGUAGES CXX)
 # add source files to this set manually for best dependency checks etc 
 set(SOURCE_MAIN_CPP
     src/fg_main.cpp
-    src/fg_logutil.cpp
+    src/fg_log.cpp
 )
 # or use file(GLOB_RECURSE SOURCE_MAIN_CPP src/*.cpp) for lazy
 
