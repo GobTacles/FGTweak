@@ -8,3 +8,5 @@
 #include <string>
 #include <format>
 #include <string_view>
+
+using namespace std::literals;

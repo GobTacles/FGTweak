@@ -6,11 +6,20 @@ C++ SKSE plugin to tweak Skyrim
 
 - first goal 2026-04 is reminding a user to finish the setup guide in the starting realm.
 
-# CommonLibSSE NG
+# developer quickstart 
 
-Because this uses [CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSSE-NG), it supports Skyrim SE, AE, GOG, and VR.
-
-[CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSSE-NG) is a fork of the popular [powerof3 fork](https://github.com/powerof3/CommonLibSSE) of the _original_ `CommonLibSSE` library created by [Ryan McKenzie](https://github.com/Ryan-rsm-McKenzie) in [2018](https://github.com/Ryan-rsm-McKenzie/CommonLibSSE/commit/224773c424bdb8e36c761810cdff0fcfefda5f4a).
+- install visual studio 2022 (free community edition), only needed for commandline compiler tools, see Requirements
+- install vcpkg, needed for requirements like "CommonLibSSE NG", see Requirements
+- open vscode (visual studio code), our main development IDE
+- install vscode extension "CMake Tools" (by microsoft)
+- git clone from the project website (green code button top right, HTTPS)
+- if it asks for debug or release in the top center box, choose release for now
+- it should start downloading and compiling the dependencies
+- at the bottom of the window is a gear icon -> that builds the project and creates a DLL file
+- you can manuall copy the dll from build/release/ to mods\FGTweak\SKSE\Plugins  (mo2 .. menu : new empty mod FGTeak)
+- or set a windows environment var SKYRIM_MODS_FOLDER e.g. `C:\game\SkyrimModpacks\YourModList\mods`
+- with that it would be automatically copied to the mod folder
+- if the game is running, the copy will fail
 
 # Requirements
 
@@ -21,6 +30,13 @@ Because this uses [CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSS
   - 3. Edit your system or user Environment Variables and add a new one:
     - Name: `VCPKG_ROOT`  
       Value: `C:\path\to\wherever\your\vcpkg\folder\is`
+
+# CommonLibSSE NG
+
+- CommonLibSSE NG will be automatically downloaded and built by vcpkg when you open the project in vscode.
+- Because this uses [CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSSE-NG), it supports Skyrim SE, AE, GOG, and VR.
+
+[CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSSE-NG) is a fork of the popular [powerof3 fork](https://github.com/powerof3/CommonLibSSE) of the _original_ `CommonLibSSE` library created by [Ryan McKenzie](https://github.com/Ryan-rsm-McKenzie) in [2018](https://github.com/Ryan-rsm-McKenzie/CommonLibSSE/commit/224773c424bdb8e36c761810cdff0fcfefda5f4a).
 
 ## Opening the project
 
