@@ -2,7 +2,6 @@
 
 # IDE / text editor profile files
 /.vscode
-/.github
 
 # Possible C++ build output directories and files
 /build
