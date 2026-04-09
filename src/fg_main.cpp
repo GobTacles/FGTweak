@@ -3,10 +3,16 @@
 #include "fg_log.h" // logger.info
 #include "fg_str_util.h" // str
 
+// TODO: check pagefile > 20gb
+// TODO: warn if overlay apps are running
+// idea : maybe we can just list running quests and detect mcm recorder script running?
+// idea : movement speed debuff, player.setav speedmult 1
+
 class cFGTweakMain :
 	public RE::BSTEventSink<RE::InputEvent*>, // hotkey
 	public RE::BSTEventSink<SKSE::CrosshairRefEvent>, // crosshair over object
-    public RE::BSTEventSink<RE::TESActivateEvent> // activate item
+    public RE::BSTEventSink<RE::TESActivateEvent>, // activate item
+    public RE::BSTEventSink<RE::MenuOpenCloseEvent> // menu
 {
 public:
     FGLogger logger;
@@ -62,21 +68,25 @@ public:
     
     void OnPlayerActivateItem (std::string itemName)
     {
-        bool in_rol = is_player_in_rol();
-        logger.info("OnPlayerActivateItem '{}' in_rol={}",itemName,in_rol);
-
-        if (in_rol)
-        {
-            // This is the message that we want to show
-            auto message = std::format("Player activated {}", itemName);
-
-            // Popup a "Debug MessageBox" (with an OK button)
-            RE::DebugMessageBox(message.c_str());
-
-            // Show a "Debug Notification" (displays in the top-left corner of the game)
-            RE::DebugNotification(message.c_str());
-        }
+        if (!is_player_in_rol()) return;
+        logger.info("OnPlayerActivateItem '{}'",itemName);
     }
+    
+    void OnCrosshairRefEvent (const SKSE::CrosshairRefEvent* e)
+    {
+        if (!is_player_in_rol()) return;
+
+        // WARNING: BaseObject is the "class" (like all bandits) rather than the "instance" (this particular bandit)
+        // WARNING GetActorBase() returns the base of the actor, not the instance.
+        // Actor/Character: What you encounter in game. Bandit Thug in Valtheim Towers, etc.
+        // Actorbase: The base that all Bandit Thugs in the game pull from.
+
+		if (auto o = e->crosshairRef) {
+            // if (auto* p = o->GetBaseObject()) { ... }
+            logger.info("OnCrosshairRefEvent GetName={} GetFormID={}",o->GetName(),o->GetFormID());
+		}
+    }
+
 
 // ***** setup reminder / cage
 
@@ -112,6 +122,15 @@ public:
             if (in_rol && !in_cage)
             {
                 actor->SetPosition(p0, true);
+                
+                std::string msg_long = "please finish setup\r\nbefore moving around\r\nsee the guide on the website, step 5";
+                std::string msg_short = "please finish setup before moving";
+
+                // Show a "Debug Notification" (displays in the top-left corner of the game)
+                RE::DebugNotification(msg_short.c_str());
+
+                // Popup a "Debug MessageBox" (with an OK button)
+                RE::DebugMessageBox(msg_long.c_str());
             }
         }
     }
@@ -120,6 +139,7 @@ public:
 
     bool is_player_in_rol ()
     {
+        // TODO: cache in bool once we have a 100msec step function
         RE::Actor* actor = get_player_actor();       
         if (!actor) return false;
         RE::NiAVObject* niav = actor->Get3D2();
@@ -154,19 +174,7 @@ public:
     // CrosshairRefEvent
 	RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* e, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
 	{
-        // WARNING GetActorBase() returns the base of the actor, not the instance.
-        // Actor/Character: What you encounter in game. Bandit Thug in Valtheim Towers, etc.
-        // Actorbase: The base that all Bandit Thugs in the game pull from.
-
-        #if 0
-        RE::TESObjectREFR* res = e ? e->crosshairRef.get() : nullptr;
-		if (auto o = e->crosshairRef) {
-            if (auto* p = o->GetBaseObject()) { // TESBoundObject WARNING: BaseObject is the "class" (like all bandits) rather than the "instance" (this particular bandit)
-                res = p;
-                // logger.info("CrosshairRefEvent GetName={} GetFormID={}",p->GetName(),p->GetFormID());
-            }
-		}
-        #endif
+        OnCrosshairRefEvent(e);
 		return RE::BSEventNotifyControl::kContinue;
 	}
 
@@ -177,6 +185,13 @@ public:
             OnPlayerActivateItem(activated);
             // NOTE: returning kStop does NOT prevent activation
         }
+        return RE::BSEventNotifyControl::kContinue;
+    }
+    
+    // Log information about Menu open/close events that happen in the game
+    RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
+                                          RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override {
+        logger.info("Menu {} Open? {}", str(event->menuName), event->opening);
         return RE::BSEventNotifyControl::kContinue;
     }
 
@@ -242,6 +257,8 @@ public:
         {
             src->AddEventSink<RE::TESActivateEvent>(GetEventSink()); 
         } else { logger.info("ScriptEventSourceHolder=null?"); }
+        
+        if (auto* src = RE::UI::GetSingleton()) src->AddEventSink<RE::MenuOpenCloseEvent>(GetEventSink());
 
 	    r.skse.message->RegisterListener([](SKSE::MessagingInterface::Message *message) {
             gFGTweakMain.OnMsgInterfaceMsg(message);

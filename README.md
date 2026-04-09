@@ -1,12 +1,12 @@
-# What is it?
+## What is it?
 
 - a SKSE plugin for Skyrim modding with c++ code
 
-# What does it do?
+## What does it do?
 
 - first goal is reminding the player to finish the setup guide in the starting area.
 
-# developer quickstart 
+## developer quickstart 
 
 - install visual studio 2022 (free community edition), only needed for commandline compiler tools, see Requirements
 - install cmake, see Requirements
@@ -17,12 +17,12 @@
 - if it asks for debug or release in the top center box, choose release for now
 - it should start downloading and compiling "CommonLibSSE NG", can take a few minutes
 - at the bottom of the window is a gear icon -> that builds the project and creates a DLL file
-- you can manuall copy the dll from build/release/ to mods\FGTweak\SKSE\Plugins  (mo2 .. menu : new empty mod FGTeak)
+- you can manuall copy the dll from build/release/ to mods\FGTweak\SKSE\Plugins  (mo2 .. menu : new empty mod FGTweak)
 - or set a windows environment var SKYRIM_MODS_FOLDER e.g. `C:\game\SkyrimModpacks\YourModList\mods`
 - with that it would be automatically copied to the mod folder
 - note that if the game is running, the copy will fail
 
-# Requirements
+### Requirements
 
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) (_the free Community edition_)
 - [`cmake`](https://cmake.org/download/)
@@ -34,14 +34,7 @@
     - Name: `VCPKG_ROOT`  
       Value: `C:\path\to\wherever\your\vcpkg\folder\is`
 
-# CommonLibSSE NG
-
-- CommonLibSSE NG will be automatically downloaded and built by vcpkg when you open the project in vscode.
-- Because this uses [CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSSE-NG), it supports Skyrim SE, AE, GOG, and VR.
-
-[CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSSE-NG) is a fork of the popular [powerof3 fork](https://github.com/powerof3/CommonLibSSE) of the _original_ `CommonLibSSE` library created by [Ryan McKenzie](https://github.com/Ryan-rsm-McKenzie) in [2018](https://github.com/Ryan-rsm-McKenzie/CommonLibSSE/commit/224773c424bdb8e36c761810cdff0fcfefda5f4a).
-
-# Opening the project in VS Code
+### Opening the project in VS Code
 
 Once you have Visual Studio 2022 installed, you can open this folder in basically any C++ editor, e.g. [VS Code](https://code.visualstudio.com/) 
 - _for VS Code, if you are not automatically prompted to install the 
@@ -50,7 +43,7 @@ Once you have Visual Studio 2022 installed, you can open this folder in basicall
 - extensions, please install those and then close VS Code and then open this project as a folder in VS Code_
 - You may need to click `OK` on a few windows, but the project should automatically run CMake!
 
-# SKYRIM_MODS_FOLDER
+### SKYRIM_MODS_FOLDER
 
 By default, when this project compiles it will output a `.dll` for your SKSE plugin into the `build/release/` folder.
 
@@ -63,12 +56,27 @@ to `.../YourModList/mods/PROJECTNAME/SKSE/Plugins/PROJECTNAME.dll`
 
 Reboot your PC after changing environment variables.
 
-# commonlibsse-ng update
+### code search / browsing
 
-vcpkg-configuration.json
-Update the baseline to the latest commit from the above repo. 6309841a.. = 2023-05-13 = latest on colored glass as of 2026-04
-see https://github.com/CharmedBaryon/CommonLibSSE-NG?tab=readme-ov-file#use
+- ctrl/alt click or rclick jump to definition should work for commonlib symbols
+- to include commonlib in search in all files :
+- copy .vscode/settings.json.dist to .vscode/settings.json
 
-# misc
+## background infos
+
+### CommonLibSSE NG info
+
+- CommonLibSSE NG will be automatically downloaded and built by vcpkg when you open the project in vscode.
+- Because this uses [CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSSE-NG), it supports Skyrim SE, AE, GOG, and VR.
+
+[CommonLibSSE NG](https://github.com/CharmedBaryon/CommonLibSSE-NG) is a fork of the popular [powerof3 fork](https://github.com/powerof3/CommonLibSSE) of the _original_ `CommonLibSSE` library created by [Ryan McKenzie](https://github.com/Ryan-rsm-McKenzie) in [2018](https://github.com/Ryan-rsm-McKenzie/CommonLibSSE/commit/224773c424bdb8e36c761810cdff0fcfefda5f4a).
+
+- to update "CommonLibSSE NG" to a new version:
+
+- vcpkg-configuration.json
+- Update the baseline to the latest commit from the above repo. 6309841a.. = 2023-05-13 = latest on colored glass as of 2026-04
+- see https://github.com/CharmedBaryon/CommonLibSSE-NG?tab=readme-ov-file#use
+
+### misc
 
 - project setup derived from mrowrpurr's "Hello World" template : https://github.com/SkyrimScripting/SKSE_Template_HelloWorld
