@@ -1,7 +1,9 @@
 name: Build DLL
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build-windows:
@@ -14,7 +16,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install CMake + Ninja
-        uses: lukka/get-cmake@v3
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 4.2.3
+          ninjaVersion: latest
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
@@ -24,15 +29,19 @@ jobs:
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
 
       - name: Configure
         run: cmake --preset release
 
       - name: Build
-        run: cmake --build build/release
+        run: cmake --build build/release --parallel
 
       - name: Upload DLL
         uses: actions/upload-artifact@v4
         with:
           name: FGTweak-dll
-          path: build/release/**/FGTweak*.dll
+          if-no-files-found: error
+          path: |
+            build/release/FGTweak.dll
