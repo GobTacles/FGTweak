@@ -35,10 +35,10 @@ jobs:
           arch: amd64
 
       - name: Configure
-        run: cmake --preset release
+        run: cmake --preset ci-release
 
       - name: Build
-        run: cmake --build build/release --parallel
+        run: cmake --build build/ci-release --parallel
 
       - name: Upload DLL
         uses: actions/upload-artifact@v4
@@ -46,4 +46,4 @@ jobs:
           name: FGTweak-dll
           if-no-files-found: error
           path: |
-            build/release/FGTweak.dll
+            build/ci-release/FGTweak.dll

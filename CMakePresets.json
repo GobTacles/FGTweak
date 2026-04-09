@@ -28,6 +28,15 @@
             "inherits": ["base"],
             "displayName": "Release",
             "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+        },
+        {
+            "name": "ci-release",
+            "inherits": ["base"],
+            "displayName": "CI Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "VCPKG_BUILD_TYPE": "release"
+            }
         }
     ]
 }
