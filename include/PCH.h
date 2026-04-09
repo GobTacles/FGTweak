@@ -6,7 +6,10 @@
 #include <optional>
 #include <functional>
 #include <string>
-#include <format>
 #include <string_view>
+#include <format>
+#include <set>
+#include <map>
+#include <deque>
 
 using namespace std::literals; // needed for commonlib build/.../__FGTweakPlugin.cpp ".."sv (std::string_view literal)

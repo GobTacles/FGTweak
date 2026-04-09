@@ -87,11 +87,22 @@ public:
 		}
     }
 
+    std::set<std::string> ignore_menu {
+        "Loading Menu","Mist Menu","Fader Menu","LoadWaitSpinner","BTPS Ovelay Menu","BTPS Menu",
+        "TrueHUD","Main Menu","oxygenMeter2","Cursor Menu","Console",
+    };
+
+    void OnMenuOpenClose (std::string menuName,bool opening)
+    {
+        if (ignore_menu.contains(menuName)) return;
+        logger.info("MenuOpenClose menuName=\"{}\" opening={}", menuName, opening);
+    }
+    
 
 // ***** setup reminder / cage
 
     const RE::NiPoint3 ROL_spawn_pos{5575.0f,-17411.0f,4683.0f}; // z+140 = in the air during jump so player can fall down to the ground vs height
-    const float dist_ROL_area = 5000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet)
+    const float dist_ROL_area = 15000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet) : seen d=7500 on other side from start
     const float dist_ROL_cage = 200.0f; // 2 steps ~ 120
     
     void OnKey_Test ()
@@ -131,6 +142,19 @@ public:
 
                 // Popup a "Debug MessageBox" (with an OK button)
                 RE::DebugMessageBox(msg_long.c_str());
+            }
+        }
+        
+        if (auto* dataHandler = RE::TESDataHandler::GetSingleton())
+        {
+            auto& quests = dataHandler->GetFormArray<RE::TESQuest>();
+            for (auto* q : quests) {
+                if (!q || !q->IsRunning() || !q->IsActive()) continue;
+                bool inHUD = q->data.flags.all(RE::QuestFlag::kDisplayedInHUD);
+                bool isMain = q->data.questType == RE::QUEST_DATA::Type::kMainQuest;
+                bool isMisc = q->data.questType == RE::QUEST_DATA::Type::kMiscellaneous;
+                bool isSide = q->data.questType == RE::QUEST_DATA::Type::kSideQuest;
+                logger.info("+quest name={} id={} IsCompleted={} inHUD={} type={}",q->GetName(),q->GetFormEditorID(),q->IsCompleted(),inHUD,isMain?"main":isMisc?"misc":isSide?"side":"other");
             }
         }
     }
@@ -187,11 +211,12 @@ public:
         }
         return RE::BSEventNotifyControl::kContinue;
     }
-    
+
     // Log information about Menu open/close events that happen in the game
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
                                           RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override {
-        logger.info("Menu {} Open? {}", str(event->menuName), event->opening);
+        std::string menuName = str(event->menuName);
+        OnMenuOpenClose(menuName,event->opening);
         return RE::BSEventNotifyControl::kContinue;
     }
 
