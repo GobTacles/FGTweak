@@ -37,7 +37,7 @@ public:
         std::string meminfo = "unknown";
         if (mi) 
         {
-            meminfo = std::format("physical_memory: {} GB, page_file: {} GB",
+            meminfo = std::format("physical memory: {} GB, page file: {} GB",
                 mi->physical_memory/gb,
                 mi->page_file_size/gb
             );
@@ -47,7 +47,7 @@ public:
         
         if (!mi || mi->page_file_size < pagefile_min)
         {
-            std::string msg = std::format("[FGTweak] PageFile Warning:\r\nplease set the Windows PageFile to at least 20GB\r\n{}\r\nWrite !pagefile in our discord for instructions",
+            std::string msg = std::format("[FGTweak] PageFile Warning:\r\nPlease set the Windows PageFile to at least 20 GB\r\n{}\r\nWrite !pagefile in our discord for instructions",
                 meminfo);
             RE::DebugMessageBox(msg.c_str());
         }
