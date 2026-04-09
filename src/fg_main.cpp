@@ -5,7 +5,8 @@
 
 class cFGTweakMain :
 	public RE::BSTEventSink<RE::InputEvent*>, // hotkey
-	public RE::BSTEventSink<SKSE::CrosshairRefEvent> // crosshair over object
+	public RE::BSTEventSink<SKSE::CrosshairRefEvent>, // crosshair over object
+    public RE::BSTEventSink<RE::TESActivateEvent> // activate item
 {
 public:
     FGLogger logger;
@@ -57,14 +58,36 @@ public:
         if (dxScanCode == SCANCODE_test) OnKey_Test();
     }
 
+    std::string name_shard = "Shard of Lorkhan"; // e.g. OnPlayerActivateItem / GetBaseObject()->GetName()
+    
+    void OnPlayerActivateItem (std::string itemName)
+    {
+        bool in_rol = is_player_in_rol();
+        logger.info("OnPlayerActivateItem '{}' in_rol={}",itemName,in_rol);
+
+        if (in_rol)
+        {
+            // This is the message that we want to show
+            auto message = std::format("Player activated {}", itemName);
+
+            // Popup a "Debug MessageBox" (with an OK button)
+            RE::DebugMessageBox(message.c_str());
+
+            // Show a "Debug Notification" (displays in the top-left corner of the game)
+            RE::DebugNotification(message.c_str());
+        }
+    }
+
+// ***** setup reminder / cage
+
     const RE::NiPoint3 ROL_spawn_pos{5575.0f,-17411.0f,4683.0f}; // z+140 = in the air during jump so player can fall down to the ground vs height
-    const float dist_ROL_area = 2000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet)
+    const float dist_ROL_area = 5000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet)
     const float dist_ROL_cage = 200.0f; // 2 steps ~ 120
     
     void OnKey_Test ()
     {
         logger.info("OnKey_Test");
-        RE::Actor* actor = myActorPlayer();       
+        RE::Actor* actor = get_player_actor();       
         if (!actor) return;
         RE::NiAVObject* niav = actor->Get3D2();
 
@@ -94,8 +117,19 @@ public:
     }
 
 // ***** actor utils
+
+    bool is_player_in_rol ()
+    {
+        RE::Actor* actor = get_player_actor();       
+        if (!actor) return false;
+        RE::NiAVObject* niav = actor->Get3D2();
+        if (!niav) return false;
+        RE::NiPoint3 pos = niav->worldBound.center;
+        float d = pos.GetDistance(ROL_spawn_pos);
+        return d < dist_ROL_area;
+    }
     
-    RE::Actor* myActorPlayer () {
+    RE::Actor* get_player_actor () {
         RE::PlayerCharacter* p = RE::PlayerCharacter::GetSingleton();
         return p ? p->As<RE::Actor>() : nullptr;
     }
@@ -135,7 +169,17 @@ public:
         #endif
 		return RE::BSEventNotifyControl::kContinue;
 	}
-    
+
+    RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent* event,
+                                          RE::BSTEventSource<RE::TESActivateEvent>*) override {
+        if (event && event->actionRef && event->actionRef->GetFormID() == 0x14) {
+            std::string activated = event->objectActivated->GetBaseObject()->GetName();
+            OnPlayerActivateItem(activated);
+            // NOTE: returning kStop does NOT prevent activation
+        }
+        return RE::BSEventNotifyControl::kContinue;
+    }
+
 // ***** utils
 
     template <typename T>
@@ -192,7 +236,12 @@ public:
 
         if (r.skse.papyrus) r.skse.papyrus->Register(MyRegisterPapyrus);
         
-	    if (auto* src = SKSE::GetCrosshairRefEventSource()) src->AddEventSink(GetEventSink()); else logger.info("GetCrosshairRefEventSource=null?0");
+	    if (auto* src = SKSE::GetCrosshairRefEventSource()) src->AddEventSink(GetEventSink()); else logger.info("GetCrosshairRefEventSource=null?");
+
+	    if (auto* src = RE::ScriptEventSourceHolder::GetSingleton())
+        {
+            src->AddEventSink<RE::TESActivateEvent>(GetEventSink()); 
+        } else { logger.info("ScriptEventSourceHolder=null?"); }
 
 	    r.skse.message->RegisterListener([](SKSE::MessagingInterface::Message *message) {
             gFGTweakMain.OnMsgInterfaceMsg(message);

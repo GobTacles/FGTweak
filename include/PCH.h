@@ -9,4 +9,4 @@
 #include <format>
 #include <string_view>
 
-using namespace std::literals;
+using namespace std::literals; // needed for commonlib build/.../__FGTweakPlugin.cpp ".."sv (std::string_view literal)
