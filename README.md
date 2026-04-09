@@ -54,8 +54,8 @@ Once you have Visual Studio 2022 installed, you can open this folder in basicall
 
 By default, when this project compiles it will output a `.dll` for your SKSE plugin into the `build/release/` folder.
 
-If you want to configure this project to output your plugin files
-into your "`mods`" folder:  
+If you want to configure this project to copy your plugin dll file
+to `.../YourModList/mods/PROJECTNAME/SKSE/Plugins/PROJECTNAME.dll`
 (_for Mod Organizer 2_)
 
 - Set the `SKYRIM_MODS_FOLDER` environment variable to the path of your mods folder:  
