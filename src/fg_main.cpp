@@ -105,7 +105,7 @@ public:
 
 		if (auto o = e->crosshairRef) {
             // if (auto* p = o->GetBaseObject()) { ... }
-            logger.info("OnCrosshairRefEvent GetName={} GetFormID={}",o->GetName(),o->GetFormID());
+            // logger.info("OnCrosshairRefEvent GetName={} GetFormID={}",o->GetName(),o->GetFormID());
 		}
     }
 
