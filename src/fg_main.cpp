@@ -22,7 +22,7 @@ public:
 
     cFGTweakMain* GetEventSink () { return this; }
 
-    const std::string sVersionInfo = ".v01";
+    const std::string sVersionInfo = ".v0.1.0-b03";
 	const uint32_t SCANCODE_test = 65; // f1=59.. f7=65  f11=87 
 
     // kDataLoaded
