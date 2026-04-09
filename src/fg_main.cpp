@@ -1,5 +1,6 @@
 // 2026-04 fgsmodlists.com FGTweak
 #include "PCH.h"
+#include "fg_win.h"
 #include "fg_log.h" // logger.info
 #include "fg_str_util.h" // str
 
@@ -28,7 +29,28 @@ public:
     void OnDataLoaded()
     {
         // NOTE: RE::ConsoleLog::GetSingleton()->Print wont work before kDataLoaded
-        logger.info("OnDataLoaded, version={}",sVersionInfo);
+        
+        // PageFile warning
+        constexpr uint64_t gb = 1ull * 1024 * 1024 * 1024; // 20 GB
+        constexpr uint64_t pagefile_min = 20ull * gb;
+        std::optional<fg_memory_info> mi = win_get_memory_info();
+        std::string meminfo = "unknown";
+        if (mi) 
+        {
+            meminfo = std::format("physical_memory: {} GB, page_file: {} GB",
+                mi->physical_memory/gb,
+                mi->page_file_size/gb
+            );
+        }
+
+        logger.info("OnDataLoaded, version={} meminfo={}",sVersionInfo,meminfo);
+        
+        if (!mi || mi->page_file_size < pagefile_min)
+        {
+            std::string msg = std::format("[FGTweak] PageFile Warning:\r\nplease set the Windows PageFile to at least 20GB\r\n{}\r\nWrite !pagefile in our discord for instructions",
+                meminfo);
+            RE::DebugMessageBox(msg.c_str());
+        }
     }
     
 // ***** skse events 
@@ -95,6 +117,8 @@ public:
     void OnMenuOpenClose (std::string menuName,bool opening)
     {
         if (ignore_menu.contains(menuName)) return;
+        // bool is_racemenu = menuName == "RaceSex Menu";
+        // bool is_msgbox = menuName == "MessageBoxMenu";
         logger.info("MenuOpenClose menuName=\"{}\" opening={}", menuName, opening);
     }
     

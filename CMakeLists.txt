@@ -16,6 +16,7 @@ project(FGTweak VERSION 0.1.0 LANGUAGES CXX)
 set(SOURCE_MAIN_CPP
     src/fg_main.cpp
     src/fg_log.cpp
+    src/fg_win.cpp
 )
 # or use file(GLOB_RECURSE SOURCE_MAIN_CPP src/*.cpp) for lazy
 
@@ -38,6 +39,7 @@ target_sources("${PROJECT_NAME}"        PRIVATE ${SOURCE_MAIN_CPP} )
 add_library(my_compiler_flags INTERFACE)
 target_compile_features(my_compiler_flags INTERFACE cxx_std_23) # <--- use C++23 standard
 target_precompile_headers(my_compiler_flags INTERFACE include/PCH.h) # precompiled headers
+target_precompile_headers(my_compiler_flags INTERFACE include/PCH_win.h) # precompiled headers
 # Include the header files from the include/ directory
 target_include_directories(my_compiler_flags INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
