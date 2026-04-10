@@ -4,7 +4,9 @@
 
 ## What does it do?
 
-- first goal is reminding the player to finish the setup guide in the starting area.
+- after a new game was started, reminds the player to finish setup before moving: messagebox + teleport, max 3 times
+- messagebox warning about pagefile below 20gb when mainmenu is first loaded
+- subtle notification after 20s after loading the game if overlay processes are detected
 
 ## developer web quickstart
 

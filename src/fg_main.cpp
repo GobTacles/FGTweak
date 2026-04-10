@@ -24,7 +24,7 @@ public:
 
     cFGTweakMain* get_event_sink () { return this; }
 
-    const char* sVersionInfo = "v0.1.0";
+    const char* sVersionInfo = "v1.0.0";
 	const uint32_t SCANCODE_test = 65; // f1=59.. f7=65  f11=87 
 
 // ***** start late1 (data loaded)
