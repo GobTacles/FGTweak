@@ -126,9 +126,9 @@ public:
         if (overlay_warning_notification_countdown == 0) return;
         if (--overlay_warning_notification_countdown > 0) return;
         logger.info("overlay_warning_notification delayed");
-        RE::DebugNotification("if you experience crashes, try disabling");
-        RE::DebugNotification("overlays like steam, discord, medal,");
         RE::DebugNotification("GeForce Experience, Overwolf, MSI Afterburner");
+        RE::DebugNotification("overlays like steam, discord, medal,");
+        RE::DebugNotification("if you experience crashes, try disabling");
         #endif
     }
 
