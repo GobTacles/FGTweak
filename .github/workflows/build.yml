@@ -79,6 +79,6 @@ jobs:
       - name: Upload DLL
         uses: actions/upload-artifact@v6
         with:
-          name: FGTweak-dll
+          name: FGTweak
           if-no-files-found: error
           path: artifact
