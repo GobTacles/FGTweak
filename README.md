@@ -6,7 +6,18 @@
 
 - first goal is reminding the player to finish the setup guide in the starting area.
 
-## developer quickstart 
+## developer web quickstart
+
+- if you have a github account you can use the github website to edit code and compile the dll
+- if you are part of fg staff, just ask for access to the main org/repo
+- otherwise create your own fork of the repo on the github website
+- edit c++ code files like src/*.cpp directly on the github website
+- a github workflow should automatically compile the DLL when you push to the main branch
+- takes about 12 minutes each time / the first time for commonlib compile. we're still working on getting recompile faster with cache.
+- you can download a zip with the DLL on the project/fork page under "actions" 
+- you can configure workflow compile trigger conditions etc in .github/workflows/build.yml
+
+## developer local quickstart
 
 - install visual studio 2022 (free community edition), only needed for commandline compiler tools, see Requirements
 - install cmake, see Requirements
