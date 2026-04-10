@@ -6,8 +6,8 @@
 #include "fg_notification.h"
 #include "fg_enable.h"
 
-// TODO: check pagefile > 20gb
-// TODO: warn if overlay apps are running
+// note: check pagefile > 20gb
+// note: warn if overlay apps are running
 // idea : maybe we can just list running quests and detect mcm recorder script running?
 // idea : movement speed debuff, player.setav speedmult 1
 
@@ -227,7 +227,7 @@ public:
 
     CSimpleIniA iniFile; // see SimpleIni.h : vcpkg https://github.com/brofield/simpleini
     void load_settings() {
-        iniFile.LoadFile(L"Data/SKSE/Plugins/FGTweak.ini");
+        iniFile.LoadFile(L"Data/SKSE/Plugins/FGTweak.ini"); // NOTE i think while running, .ini files are visible under Data/SKSE/..
         // const char *key_value = iniFile.GetValue("MyKeyName", "MyDefaultValue");
     }
 
@@ -352,6 +352,7 @@ public:
             // ROL walk 2 steps    :  5582.7,-17542.4,4548.7,r=74.5 (3rdperson) , x+-2 y+-120 z+-15
         }
         
+        #ifdef ENABLE_QUEST_LIST
         if (auto* dataHandler = RE::TESDataHandler::GetSingleton())
         {
             auto& quests = dataHandler->GetFormArray<RE::TESQuest>();
@@ -378,6 +379,7 @@ public:
             }
             logger.info("num_quests_active={}",last_quests.size());
         }
+        #endif
 
         std::optional<std::string> n = fg_notification_get_last();
         if (n) logger.info("last_notification={}",*n);
