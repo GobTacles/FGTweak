@@ -69,9 +69,16 @@ jobs:
       - name: Build
         run: cmake --build build/ci-release --parallel
 
+      - name: Stage artifact
+        shell: pwsh
+        run: |
+          $artifactRoot = "${{ github.workspace }}\artifact\FGTweak\SKSE\Plugins"
+          New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
+          Copy-Item "build/ci-release/FGTweak.dll" "$artifactRoot\FGTweak.dll"
+
       - name: Upload DLL
         uses: actions/upload-artifact@v6
         with:
           name: FGTweak-dll
           if-no-files-found: error
-          path: build/ci-release/FGTweak.dll
+          path: artifact
