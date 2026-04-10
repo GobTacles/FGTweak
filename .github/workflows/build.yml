@@ -5,18 +5,27 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
+      - v*
 
 jobs:
   build-windows:
     runs-on: windows-2022
     env:
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg\archives
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-bincache-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'CMakePresets.json', 'triplets/*.cmake') }}
+          restore-keys: |
+            vcpkg-bincache-${{ runner.os }}-
 
       - name: Install CMake + Ninja
         uses: lukka/get-cmake@latest
@@ -34,6 +43,23 @@ jobs:
         with:
           arch: amd64
 
+      - name: Normalize vcpkg environment
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "${env:VCPKG_DEFAULT_BINARY_CACHE}" | Out-Null
+          "VCPKG_ROOT=$env:RUNVCPKG_VCPKG_ROOT" >> $env:GITHUB_ENV
+          "VCPKG_BINARY_SOURCES=clear;default,readwrite" >> $env:GITHUB_ENV
+          "$env:RUNVCPKG_VCPKG_ROOT" >> $env:GITHUB_PATH
+
+      - name: Verify vcpkg environment
+        shell: pwsh
+        run: |
+          Write-Host "VCPKG_ROOT=$env:VCPKG_ROOT"
+          Write-Host "RUNVCPKG_VCPKG_ROOT=$env:RUNVCPKG_VCPKG_ROOT"
+          Write-Host "VCPKG_BINARY_SOURCES=$env:VCPKG_BINARY_SOURCES"
+          where.exe vcpkg
+          & "$env:VCPKG_ROOT\vcpkg.exe" version
+
       - name: Configure
         run: cmake --preset ci-release
 
@@ -45,5 +71,4 @@ jobs:
         with:
           name: FGTweak-dll
           if-no-files-found: error
-          path: |
-            build/ci-release/FGTweak.dll
+          path: build/ci-release/FGTweak.dll
