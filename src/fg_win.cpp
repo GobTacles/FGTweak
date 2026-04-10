@@ -32,6 +32,6 @@ std::optional<std::set<std::string>> win_list_processes()
     }
     return res;
     #else
-    return false;
+    return std::nullopt;
     #endif
 }

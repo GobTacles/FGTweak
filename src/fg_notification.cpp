@@ -1,7 +1,9 @@
 // skyrim notification hook, see https://github.com/VersuchDrei/NotificationLogSSE
 #include "PCH.h"
 #include "fg_notification.h"
+#include "fg_enable.h"
 
+#ifdef ENABLE_NOTIFICATION_HOOK
 namespace NotificationLogger::detail {
     class Proxy {
     public:
@@ -70,28 +72,43 @@ namespace NotificationLogger::Hooks {
         detail::CreateHUDDataMessage::func = trampoline.write_call<5>(target, detail::CreateHUDDataMessage::thunk);
     }
 }  // namespace NotificationLogger::Hooks
+#endif
 
 size_t fg_notification_get_total()
 {
+    #ifdef ENABLE_NOTIFICATION_HOOK
     auto& proxy = NotificationLogger::detail::Proxy::GetSingleton();
     return proxy.GetTotalNotifications();
+    #else
+    return 0;
+    #endif
 }
 
 std::vector<std::string> fg_notification_get_cached()
 {
+    #ifdef ENABLE_NOTIFICATION_HOOK
     auto& proxy = NotificationLogger::detail::Proxy::GetSingleton();
     return proxy.GetMessages();
+    #else
+    return {};
+    #endif
 }
 
 std::optional<std::string> fg_notification_get_last()
 {
+    #ifdef ENABLE_NOTIFICATION_HOOK
     auto& proxy = NotificationLogger::detail::Proxy::GetSingleton();
     return proxy.GetLastMessage();
+    #else
+    return std::nullopt;
+    #endif
 }
 
 void fg_notification_hook_install()
 {
+    #ifdef ENABLE_NOTIFICATION_HOOK
     SKSE::AllocTrampoline(1u << 4);
     NotificationLogger::Hooks::Install();
+    #endif
 }
 
