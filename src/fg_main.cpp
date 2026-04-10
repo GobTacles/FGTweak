@@ -137,7 +137,8 @@ public:
     const RE::NiPoint3 ROL_spawn_pos{5575.0f,-17411.0f,4683.0f}; // z+140 = in the air during jump so player can fall down to the ground vs height
     const float dist_ROL_area = 15000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet) : seen d=7500 on other side from start
     const float dist_ROL_cage = 200.0f; // 2 steps ~ 120
-    
+    std::set<std::string> last_quests;
+
     void OnKey_Test ()
     {
         logger.info("OnKey_Test");
@@ -181,14 +182,23 @@ public:
         if (auto* dataHandler = RE::TESDataHandler::GetSingleton())
         {
             auto& quests = dataHandler->GetFormArray<RE::TESQuest>();
+            std::set<std::string> cur_quests; // last_quests
             for (auto* q : quests) {
-                if (!q || !q->IsRunning() || !q->IsActive()) continue;
+                if (!q || !q->IsActive()) continue;
+                std::string qname = q->GetName();
+                cur_quests.emplace(qname);
+                if (last_quests.contains(qname)) continue; // only show newly active quests
+                if (last_quests.empty()) continue; // dont spam hundreds the first time
+
+                // if (!q->IsRunning()) continue;
                 bool inHUD = q->data.flags.all(RE::QuestFlag::kDisplayedInHUD);
                 bool isMain = q->data.questType == RE::QUEST_DATA::Type::kMainQuest;
                 bool isMisc = q->data.questType == RE::QUEST_DATA::Type::kMiscellaneous;
                 bool isSide = q->data.questType == RE::QUEST_DATA::Type::kSideQuest;
-                logger.info("+quest name={} id={} IsCompleted={} inHUD={} type={}",q->GetName(),q->GetFormEditorID(),q->IsCompleted(),inHUD,isMain?"main":isMisc?"misc":isSide?"side":"other");
+                logger.info("+quest name={} id={} IsCompleted={} inHUD={} type={}",qname,q->GetFormEditorID(),q->IsCompleted(),inHUD,isMain?"main":isMisc?"misc":isSide?"side":"other");
             }
+            last_quests = cur_quests;
+            logger.info("num_quests_active={}",last_quests.size());
         }
     }
 

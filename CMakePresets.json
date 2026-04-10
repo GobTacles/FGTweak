@@ -37,7 +37,7 @@
                 "CMAKE_BUILD_TYPE": "Release",
                 "VCPKG_TARGET_TRIPLET": "x64-windows-static-md-release",
                 "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/triplets",
-                "VCPKG_INSTALL_OPTIONS": "--debug --x-abi-tools-use-exact-versions"
+                "VCPKG_INSTALL_OPTIONS": "--debug"
             }
         }
     ]
