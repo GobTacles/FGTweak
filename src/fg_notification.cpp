@@ -1,7 +1,6 @@
 // skyrim notification hook, see https://github.com/VersuchDrei/NotificationLogSSE
 #include "PCH.h"
-
-void fg_notification_hook_install();
+#include "fg_notification.h"
 
 namespace NotificationLogger::detail {
     class Proxy {
@@ -26,6 +25,12 @@ namespace NotificationLogger::detail {
         [[nodiscard]] auto GetMessages() const noexcept -> std::vector<std::string> {
             const auto _ = std::unique_lock(this->_lock);
             return std::vector(this->_notifications.begin(), this->_notifications.end());
+        }
+
+        [[nodiscard]] auto GetLastMessage() const noexcept -> std::optional<std::string> {
+            const auto _ = std::unique_lock(this->_lock);
+            if (_notifications.empty()) return std::nullopt;
+            return _notifications.front();
         }
 
     private:
@@ -60,13 +65,21 @@ namespace NotificationLogger::Hooks {
     }
 }  // namespace NotificationLogger::Hooks
 
+std::vector<std::string> fg_notification_get_cached()
+{
+    auto& proxy = NotificationLogger::detail::Proxy::GetSingleton();
+    return proxy.GetMessages();
+}
+
+std::optional<std::string> fg_notification_get_last()
+{
+    auto& proxy = NotificationLogger::detail::Proxy::GetSingleton();
+    return proxy.GetLastMessage();
+}
+
 void fg_notification_hook_install()
 {
     SKSE::AllocTrampoline(1u << 4);
-
-    // const auto papyrus = SKSE::GetPapyrusInterface();
-    // papyrus->Register(NotificationLogger::Papyrus::Register);
-
     NotificationLogger::Hooks::Install();
 }
 

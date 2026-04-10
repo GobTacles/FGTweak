@@ -17,6 +17,7 @@ set(SOURCE_MAIN_CPP
     src/fg_main.cpp
     src/fg_log.cpp
     src/fg_win.cpp
+    src/fg_notification.cpp
 )
 # or use file(GLOB_RECURSE SOURCE_MAIN_CPP src/*.cpp) for lazy
 

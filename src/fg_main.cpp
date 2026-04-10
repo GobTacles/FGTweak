@@ -3,6 +3,7 @@
 #include "fg_win.h"
 #include "fg_log.h" // logger.info
 #include "fg_str_util.h" // str
+#include "fg_notification.h"
 
 // TODO: check pagefile > 20gb
 // TODO: warn if overlay apps are running
@@ -207,6 +208,9 @@ public:
             }
             logger.info("num_quests_active={}",last_quests.size());
         }
+
+        std::optional<std::string> n = fg_notification_get_last();
+        if (n) logger.info("last_notification={}",*n);
     }
 
 // ***** actor utils
@@ -311,6 +315,8 @@ public:
     {
         logger.logger_init();
         SKSE::Init(skse);
+
+        fg_notification_hook_install();
         
         auto& r = get_registry();
         r.skse.scaleform        = my_error_if_null("skse.scaleform"     ,SKSE::GetScaleformInterface()); // ScaleformInterface*
