@@ -22,7 +22,7 @@ jobs:
       - name: Restore vcpkg binary cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          path: ${{ github.workspace }}\.vcpkg\archives
           key: vcpkg-bincache-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'CMakePresets.json', 'triplets/*.cmake') }}
           restore-keys: |
             vcpkg-bincache-${{ runner.os }}-
@@ -46,9 +46,11 @@ jobs:
       - name: Normalize vcpkg environment
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "${env:VCPKG_DEFAULT_BINARY_CACHE}" | Out-Null
+          $cacheDir = "${{ github.workspace }}\.vcpkg\archives"
+          New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
           "VCPKG_ROOT=$env:RUNVCPKG_VCPKG_ROOT" >> $env:GITHUB_ENV
           "VCPKG_BINARY_SOURCES=clear;default,readwrite" >> $env:GITHUB_ENV
+          "VCPKG_DEFAULT_BINARY_CACHE=$cacheDir" >> $env:GITHUB_ENV
           "$env:RUNVCPKG_VCPKG_ROOT" >> $env:GITHUB_PATH
 
       - name: Verify vcpkg environment
@@ -57,6 +59,7 @@ jobs:
           Write-Host "VCPKG_ROOT=$env:VCPKG_ROOT"
           Write-Host "RUNVCPKG_VCPKG_ROOT=$env:RUNVCPKG_VCPKG_ROOT"
           Write-Host "VCPKG_BINARY_SOURCES=$env:VCPKG_BINARY_SOURCES"
+          Write-Host "VCPKG_DEFAULT_BINARY_CACHE=$env:VCPKG_DEFAULT_BINARY_CACHE"
           where.exe vcpkg
           & "$env:VCPKG_ROOT\vcpkg.exe" version
 
