@@ -12,6 +12,9 @@
 #include <set>
 #include <map>
 #include <deque>
-#include <cstdint> // uint64_t 
+#include <cstdint> // uint64_t
+#include <atomic>
+#include <chrono>
+#include <thread>
 
 using namespace std::literals; // needed for commonlib build/.../__FGTweakPlugin.cpp ".."sv (std::string_view literal)

@@ -26,6 +26,8 @@ public:
     const std::string sVersionInfo = ".v0.1.0";
 	const uint32_t SCANCODE_test = 65; // f1=59.. f7=65  f11=87 
 
+// ***** start late (data loaded)
+
     // kDataLoaded
     void OnDataLoaded()
     {
@@ -53,8 +55,22 @@ public:
                 meminfo);
             RE::DebugMessageBox(msg.c_str());
         }
+
+        StartStepLoop();
     }
     
+// ***** step
+
+    size_t c_step = 0;
+    void Step200ms()
+    {
+        ++c_step;
+        if ((c_step % 5*10) == 0) {
+            logger.info("step 10s");
+        }
+        // Safe Skyrim access here
+    }
+
 // ***** config/.ini file
 
     CSimpleIniA iniFile;
@@ -65,10 +81,11 @@ public:
 
 // ***** skse events
 
-    std::optional<std::uint32_t> last_start_imsg;
-    bool has_start () { return last_start_imsg?true:false; }
-    bool last_start_was_new_game  () { return has_start() && *last_start_imsg == SKSE::MessagingInterface::kNewGame; }
-    bool last_start_was_load_game () { return has_start() && (*last_start_imsg == SKSE::MessagingInterface::kPreLoadGame || *last_start_imsg == SKSE::MessagingInterface::kPostLoadGame); }
+    std::optional<std::uint32_t> game_start_imsg;
+    bool has_game_start () { return game_start_imsg?true:false; }
+    bool last_game_start_was_new  () { return has_game_start() && *game_start_imsg == SKSE::MessagingInterface::kNewGame; }
+    bool last_game_start_was_load () { return has_game_start() && (*game_start_imsg == SKSE::MessagingInterface::kPreLoadGame || *game_start_imsg == SKSE::MessagingInterface::kPostLoadGame); }
+    void on_game_start (std::uint32_t imsg) { game_start_imsg = imsg; }
 
     // MessagingInterface listener : input=hotkeys, kDataLoaded
     void OnMsgInterfaceMsg (SKSE::MessagingInterface::Message *message)
@@ -80,11 +97,11 @@ public:
         }
         if (message->type == SKSE::MessagingInterface::kPostLoad)       { logger.info("kPostLoad"); }
         if (message->type == SKSE::MessagingInterface::kPostPostLoad)   { logger.info("kPostPostLoad"); OnPostPostLoad(); }
-        if (message->type == SKSE::MessagingInterface::kPreLoadGame)    { logger.info("kPreLoadGame"); last_start_imsg = message->type; }
-        if (message->type == SKSE::MessagingInterface::kPostLoadGame)   { logger.info("kPostLoadGame"); last_start_imsg = message->type; }
+        if (message->type == SKSE::MessagingInterface::kPreLoadGame)    { logger.info("kPreLoadGame"); on_game_start(message->type); }
+        if (message->type == SKSE::MessagingInterface::kPostLoadGame)   { logger.info("kPostLoadGame"); on_game_start(message->type); }
         if (message->type == SKSE::MessagingInterface::kSaveGame)       { logger.info("kSaveGame"); }
         if (message->type == SKSE::MessagingInterface::kDeleteGame)     { logger.info("kDeleteGame"); }
-        if (message->type == SKSE::MessagingInterface::kNewGame)        { logger.info("kNewGame"); last_start_imsg = message->type; }
+        if (message->type == SKSE::MessagingInterface::kNewGame)        { logger.info("kNewGame"); on_game_start(message->type); }
         if (message->type == SKSE::MessagingInterface::kDataLoaded)     { logger.info("kDataLoaded"); OnDataLoaded(); }
     }
 
@@ -282,6 +299,49 @@ public:
         std::string menuName = str(event->menuName);
         OnMenuOpenClose(menuName,event->opening);
         return RE::BSEventNotifyControl::kContinue;
+    }
+
+// ***** step thread
+
+    std::jthread stepThread;
+    std::atomic_bool stepQueued{ false };
+
+    void StartStepLoop()
+    {
+        auto* task = SKSE::GetTaskInterface();
+        if (!task) {
+            logger.info("TaskInterface=null");
+            return;
+        }
+
+        stepThread = std::jthread([this](std::stop_token stopToken) {
+            using namespace std::chrono_literals;
+
+            while (!stopToken.stop_requested()) {
+                std::this_thread::sleep_for(200ms);
+                if (stopToken.stop_requested()) {
+                    break;
+                }
+
+                // Prevent piling up tasks if the previous step has not run yet.
+                if (stepQueued.exchange(true)) {
+                    continue;
+                }
+
+                SKSE::GetTaskInterface()->AddTask([this]() {
+                    stepQueued = false;
+                    Step200ms();
+                });
+            }
+        });
+    }
+
+    void StopStepLoop()
+    {
+        if (stepThread.joinable()) {
+            stepThread.request_stop();
+            stepThread.join();
+        }
     }
 
 // ***** utils
