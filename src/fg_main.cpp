@@ -26,13 +26,25 @@ public:
     const std::string sVersionInfo = ".v0.1.0";
 	const uint32_t SCANCODE_test = 65; // f1=59.. f7=65  f11=87 
 
-// ***** start late (data loaded)
+// ***** start late1 (data loaded)
 
     // kDataLoaded
     void on_data_loaded()
     {
         // NOTE: logger/RE::ConsoleLog::GetSingleton()->Print wont work before kDataLoaded
         load_settings();
+        
+
+        step_loop_start();
+    }
+
+// ***** start late2 (main menu)
+
+    bool on_main_menu_check_enabled = true;
+    void on_main_menu_check ()
+    {
+        if (!on_main_menu_check_enabled) return;
+        on_main_menu_check_enabled = false; // only once
         
         // PageFile warning
         constexpr uint64_t gb = 1ull * 1024 * 1024 * 1024; // 20 GB
@@ -43,7 +55,7 @@ public:
                 mi->page_file_size/gb
             ) : "unknown";
 
-        logger.info("on_data_loaded, version={} meminfo={}",sVersionInfo,meminfo);
+        logger.info("on_main_menu_check, version={} meminfo={}",sVersionInfo,meminfo);
         
         if (!mi || mi->page_file_size < pagefile_min)
         {
@@ -51,9 +63,9 @@ public:
                 meminfo);
             RE::DebugMessageBox(msg.c_str());
         }
-
-        step_loop_start();
     }
+
+// ***** overlay_warning
 
     // overwlay warnings
     std::set<std::string> ow_discord = { "CoreUIComponents.dll" }; // TODO: can this come from other apps too ?
@@ -71,15 +83,15 @@ public:
         return false;
     }
 
-    bool do_on_main_menu_check = true;
-    void on_main_menu_check ()
+    bool overlay_warning_check_enabled = true;
+    void overlay_warning_check ()
     {
-        if (!do_on_main_menu_check) return;
-        do_on_main_menu_check = false;
+        if (!overlay_warning_check_enabled) return;
+        overlay_warning_check_enabled = false; // only once
         std::optional<std::set<std::string>> v_proc = win_list_processes();
         bool overlay_steam = has_proc(v_proc,ow_steam);
         bool overlay_discord = has_proc(v_proc,ow_discord);
-        logger.info("on_main_menu_check, #processes={} overlays: steam={} discord={}",v_proc?std::to_string(v_proc->size()):"(none)",overlay_steam,overlay_discord);
+        logger.info("overlay_warning_check, #processes={} overlays: steam={} discord={}",v_proc?std::to_string(v_proc->size()):"(none)",overlay_steam,overlay_discord);
         if (v_proc) for (auto s : *v_proc)
         {
             s = s.substr(s.find_last_of('\\') + 1); // remove anything before last backslash
@@ -87,7 +99,7 @@ public:
         }
 
         if (overlay_steam) {
-            std::string msg = std::format("[FGTweak] Overlay Warning: Steam\r\nplease disable 'steam overlay while ingame'\r\nin steam library (rclick skyrim: setting : general)");
+            std::string msg = std::format("[FGTweak] Overlay Warning: Steam\r\nplease make sure 'steam overlay while ingame'\r\nis disabled in steam library (rclick skyrim: setting : general)");
             RE::DebugMessageBox(msg.c_str());
         }
 
@@ -116,6 +128,7 @@ public:
     void on_game_start (std::uint32_t imsg) // called once for new and twice for load: pre+post
     {
         enabled_setup_help = true;
+        if (imsg == SKSE::MessagingInterface::kNewGame) overlay_warning_check();
         if (imsg != SKSE::MessagingInterface::kPostLoadGame)
         {
             need_init = true;
