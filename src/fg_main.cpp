@@ -91,7 +91,7 @@ public:
     void OnPlayerActivateItem (std::string itemName)
     {
         if (!is_player_in_rol()) return;
-        logger.info("OnPlayerActivateItem '{}'",itemName);
+        if (itemName == name_shard) logger.info("OnPlayerActivateItem '{}'",itemName);
     }
     
     void OnCrosshairRefEvent (const SKSE::CrosshairRefEvent* e)
