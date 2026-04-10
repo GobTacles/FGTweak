@@ -7,3 +7,5 @@ class fg_memory_info { public:
 };
 
 std::optional<fg_memory_info> win_get_memory_info();
+
+std::optional<std::set<std::string>> win_list_processes();

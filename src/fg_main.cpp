@@ -38,10 +38,10 @@ public:
         constexpr uint64_t gb = 1ull * 1024 * 1024 * 1024; // 20 GB
         constexpr uint64_t pagefile_min = 20ull * gb;
         std::optional<fg_memory_info> mi = win_get_memory_info();
-        std::string meminfo = mi ? "unknown" : std::format("physical memory: {} GB, page file: {} GB",
+        std::string meminfo = mi ? std::format("physical memory: {} GB, page file: {} GB",
                 mi->physical_memory/gb,
                 mi->page_file_size/gb
-            );
+            ) : "unknown";
 
         logger.info("on_data_loaded, version={} meminfo={}",sVersionInfo,meminfo);
         
@@ -53,6 +53,58 @@ public:
         }
 
         step_loop_start();
+    }
+
+    // overwlay warnings
+    std::set<std::string> ow_discord = { "CoreUIComponents.dll" }; // TODO: can this come from other apps too ?
+    std::set<std::string> ow_steam = { "GameOverlayRenderer64.dll","GameOverlayRenderer.dll" };
+    // steam_api64.dll gameoverlayrenderer64.dll steamclient64.dll skse64_1_6_1170.dll usvfs_x64.dll(mo2)
+    // steam, discord, medal, GeForce Experience, Overwolf, MSI Afterburner.
+    
+    bool has_proc (std::optional<std::set<std::string>> v_proc,std::set<std::string> v_search)
+    {
+        if (v_proc) for (auto path : *v_proc)
+        {
+            std::string haystack = str_lower(path);
+            for (auto s : v_search) if (haystack.find(str_lower(s)) != std::string::npos) return true;
+        }
+        return false;
+    }
+
+    bool do_on_main_menu_check = true;
+    void on_main_menu_check ()
+    {
+        if (!do_on_main_menu_check) return;
+        do_on_main_menu_check = false;
+        std::optional<std::set<std::string>> v_proc = win_list_processes();
+        bool overlay_steam = has_proc(v_proc,ow_steam);
+        bool overlay_discord = has_proc(v_proc,ow_discord);
+        logger.info("on_main_menu_check, #processes={} overlays: steam={} discord={}",v_proc?std::to_string(v_proc->size()):"(none)",overlay_steam,overlay_discord);
+        if (v_proc) for (auto s : *v_proc)
+        {
+            s = s.substr(s.find_last_of('\\') + 1); // remove anything before last backslash
+            logger.info("+proc '{}'",s);
+        }
+
+        if (overlay_steam) {
+            std::string msg = std::format("[FGTweak] Overlay Warning: Steam\r\nplease disable 'steam overlay while ingame'\r\nin steam library (rclick skyrim: setting : general)");
+            RE::DebugMessageBox(msg.c_str());
+        }
+
+        if (overlay_discord) {
+            std::string msg = std::format("[FGTweak] Overlay Warning: Discord\r\nif you have discord we recommend\r\ndisabling 'game overlay' in the settings");
+            RE::DebugMessageBox(msg.c_str());
+        }
+
+        //  medal, GeForce Experience, Overwolf, MSI Afterburner.
+        auto ow_warn_aux = [this](std::string n) {
+            std::string msg = std::format("[FGTweak] Overlay Warning: {}\r\nplease make sure you have disabled overlay apps like {}",n,n);
+            RE::DebugMessageBox(msg.c_str());
+        };
+        if (has_proc(v_proc,{"medal"})          ) ow_warn_aux("Medal.TV");
+        if (has_proc(v_proc,{"Experience"})     ) ow_warn_aux("GeForce Experience");
+        if (has_proc(v_proc,{"Overwolf"})       ) ow_warn_aux("Overwolf");
+        if (has_proc(v_proc,{"Afterburner"})    ) ow_warn_aux("MSI Afterburner");
     }
     
 // ***** step
@@ -175,8 +227,14 @@ public:
         "TrueHUD","Main Menu","oxygenMeter2","Cursor Menu","Console",
     };
 
+    void on_main_menu (bool opening)
+    {
+        if (opening) on_main_menu_check();
+    }
+
     void on_menu_open_close (std::string menuName,bool opening)
     {
+        if (menuName == "Main Menu") on_main_menu(opening);
         if (!enabled_setup_help) return;
         if (ignore_menu.contains(menuName)) return;
         // bool is_racemenu = menuName == "RaceSex Menu";
