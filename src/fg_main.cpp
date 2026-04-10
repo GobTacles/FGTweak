@@ -29,6 +29,7 @@ public:
     void OnDataLoaded()
     {
         // NOTE: RE::ConsoleLog::GetSingleton()->Print wont work before kDataLoaded
+        LoadSettings();
         
         // PageFile warning
         constexpr uint64_t gb = 1ull * 1024 * 1024 * 1024; // 20 GB
@@ -53,7 +54,15 @@ public:
         }
     }
     
-// ***** skse events 
+// ***** config/.ini file
+
+    CSimpleIniA iniFile;
+    void LoadSettings() {
+        iniFile.LoadFile(L"Data/SKSE/Plugins/FGTweak.ini");
+        // const char *key_value = iniFile.GetValue("MyKeyName", "MyDefaultValue");
+    }
+
+// ***** skse events
 
     // MessagingInterface listener : input=hotkeys, kDataLoaded
     void OnMsgInterfaceMsg (SKSE::MessagingInterface::Message *message)

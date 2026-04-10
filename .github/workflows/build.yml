@@ -9,13 +9,14 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install CMake + Ninja
         uses: lukka/get-cmake@latest
@@ -27,7 +28,6 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgDirectory: ${{ env.VCPKG_ROOT }}
-          setupOnly: true
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -41,7 +41,7 @@ jobs:
         run: cmake --build build/ci-release --parallel
 
       - name: Upload DLL
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: FGTweak-dll
           if-no-files-found: error

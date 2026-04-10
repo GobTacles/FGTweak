@@ -79,4 +79,5 @@ Reboot your PC after changing environment variables.
 
 ### misc
 
+- SimpleIni.h/CSimpleIniA: simpleini will be automatically installed by vcpkg, https://github.com/brofield/simpleini
 - project setup derived from mrowrpurr's "Hello World" template : https://github.com/SkyrimScripting/SKSE_Template_HelloWorld
