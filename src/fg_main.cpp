@@ -21,7 +21,7 @@ public:
     cFGTweakMain() {}
     ~cFGTweakMain() {}
 
-    cFGTweakMain* GetEventSink () { return this; }
+    cFGTweakMain* get_event_sink () { return this; }
 
     const std::string sVersionInfo = ".v0.1.0";
 	const uint32_t SCANCODE_test = 65; // f1=59.. f7=65  f11=87 
@@ -29,10 +29,10 @@ public:
 // ***** start late (data loaded)
 
     // kDataLoaded
-    void OnDataLoaded()
+    void on_data_loaded()
     {
         // NOTE: logger/RE::ConsoleLog::GetSingleton()->Print wont work before kDataLoaded
-        LoadSettings();
+        load_settings();
         
         // PageFile warning
         constexpr uint64_t gb = 1ull * 1024 * 1024 * 1024; // 20 GB
@@ -43,7 +43,7 @@ public:
                 mi->page_file_size/gb
             );
 
-        logger.info("OnDataLoaded, version={} meminfo={}",sVersionInfo,meminfo);
+        logger.info("on_data_loaded, version={} meminfo={}",sVersionInfo,meminfo);
         
         if (!mi || mi->page_file_size < pagefile_min)
         {
@@ -52,13 +52,13 @@ public:
             RE::DebugMessageBox(msg.c_str());
         }
 
-        StartStepLoop();
+        step_loop_start();
     }
     
 // ***** step
 
     size_t c_step = 0;
-    void Step200ms()
+    void step_200msec()
     {
         ++c_step;
         [[maybe_unused]] bool b_1s  = (c_step % (5*1)) == 0;
@@ -75,7 +75,7 @@ public:
 // ***** config/.ini file
 
     CSimpleIniA iniFile; // see SimpleIni.h : vcpkg https://github.com/brofield/simpleini
-    void LoadSettings() {
+    void load_settings() {
         iniFile.LoadFile(L"Data/SKSE/Plugins/FGTweak.ini");
         // const char *key_value = iniFile.GetValue("MyKeyName", "MyDefaultValue");
     }
@@ -89,7 +89,7 @@ public:
     void on_game_start (std::uint32_t imsg) { game_start_imsg = imsg; }
 
     // MessagingInterface listener : input=hotkeys, kDataLoaded
-    void OnMsgInterfaceMsg (SKSE::MessagingInterface::Message *message)
+    void on_msg_interface_msg (SKSE::MessagingInterface::Message *message)
     {
         if (message->type == SKSE::MessagingInterface::kInputLoaded)
         {
@@ -97,37 +97,37 @@ public:
             RE::BSInputDeviceManager::GetSingleton()->AddEventSink(this);
         }
         if (message->type == SKSE::MessagingInterface::kPostLoad)       { logger.info("kPostLoad"); }
-        if (message->type == SKSE::MessagingInterface::kPostPostLoad)   { logger.info("kPostPostLoad"); OnPostPostLoad(); }
+        if (message->type == SKSE::MessagingInterface::kPostPostLoad)   { logger.info("kPostPostLoad"); on_post_post_load(); }
         if (message->type == SKSE::MessagingInterface::kPreLoadGame)    { logger.info("kPreLoadGame"); on_game_start(message->type); }
         if (message->type == SKSE::MessagingInterface::kPostLoadGame)   { logger.info("kPostLoadGame"); on_game_start(message->type); }
         if (message->type == SKSE::MessagingInterface::kSaveGame)       { logger.info("kSaveGame"); }
         if (message->type == SKSE::MessagingInterface::kDeleteGame)     { logger.info("kDeleteGame"); }
         if (message->type == SKSE::MessagingInterface::kNewGame)        { logger.info("kNewGame"); on_game_start(message->type); }
-        if (message->type == SKSE::MessagingInterface::kDataLoaded)     { logger.info("kDataLoaded"); OnDataLoaded(); }
+        if (message->type == SKSE::MessagingInterface::kDataLoaded)     { logger.info("kDataLoaded"); on_data_loaded(); }
     }
 
 	// kPostPostLoad
-    void OnPostPostLoad ()
+    void on_post_post_load ()
     {
     }
     
     // hotkeys
-    void OnButtonDown(RE::ButtonEvent* button)
+    void on_button_down(RE::ButtonEvent* button)
     {
         auto dxScanCode = button->GetIDCode();
-        // logger.info("OnButtonDown {}", dxScanCode);
-        if (dxScanCode == SCANCODE_test) OnKey_Test();
+        // logger.info("on_button_down {}", dxScanCode);
+        if (dxScanCode == SCANCODE_test) on_hotkey_test();
     }
 
-    std::string name_shard = "Shard of Lorkhan"; // e.g. OnPlayerActivateItem / GetBaseObject()->GetName()
+    std::string name_shard = "Shard of Lorkhan"; // e.g. on_activate_event / GetBaseObject()->GetName()
     
-    void OnPlayerActivateItem (std::string itemName)
+    void on_activate_event (std::string itemName)
     {
         if (!is_player_in_rol()) return;
-        if (itemName == name_shard) logger.info("OnPlayerActivateItem '{}'",itemName);
+        if (itemName == name_shard) logger.info("on_activate_event '{}'",itemName);
     }
     
-    void OnCrosshairRefEvent (const SKSE::CrosshairRefEvent* e)
+    void on_crosshair_event (const SKSE::CrosshairRefEvent* e)
     {
         if (!is_player_in_rol()) return;
 
@@ -138,7 +138,7 @@ public:
 
 		if (auto o = e->crosshairRef) {
             // if (auto* p = o->GetBaseObject()) { ... }
-            // logger.info("OnCrosshairRefEvent GetName={} GetFormID={}",o->GetName(),o->GetFormID());
+            // logger.info("on_crosshair_event GetName={} GetFormID={}",o->GetName(),o->GetFormID());
 		}
     }
 
@@ -147,7 +147,7 @@ public:
         "TrueHUD","Main Menu","oxygenMeter2","Cursor Menu","Console",
     };
 
-    void OnMenuOpenClose (std::string menuName,bool opening)
+    void on_menu_open_close (std::string menuName,bool opening)
     {
         if (ignore_menu.contains(menuName)) return;
         // bool is_racemenu = menuName == "RaceSex Menu";
@@ -163,9 +163,9 @@ public:
     const float dist_ROL_cage = 200.0f; // 2 steps ~ 120
     std::set<std::string> last_quests;
 
-    void OnKey_Test ()
+    void on_hotkey_test () // F7
     {
-        // logger.info("OnKey_Test");
+        // logger.info("on_hotkey_test");
         RE::Actor* actor = get_player_actor();       
         if (!actor) return;
         RE::NiAVObject* niav = actor->Get3D2();
@@ -271,7 +271,7 @@ public:
             auto* e = *eventPtr;
             if (e && e->GetEventType() == RE::INPUT_EVENT_TYPE::kButton) {
                 auto* button = e->AsButtonEvent();
-                if (button->IsDown()) OnButtonDown(button); // IsDown = IsPressed && HeldDuration=0
+                if (button->IsDown()) on_button_down(button); // IsDown = IsPressed && HeldDuration=0
             }
         }
 		return res;
@@ -280,7 +280,7 @@ public:
     // CrosshairRefEvent
 	RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* e, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
 	{
-        OnCrosshairRefEvent(e);
+        on_crosshair_event(e);
 		return RE::BSEventNotifyControl::kContinue;
 	}
 
@@ -288,7 +288,7 @@ public:
                                           RE::BSTEventSource<RE::TESActivateEvent>*) override {
         if (event && event->actionRef && event->actionRef->GetFormID() == 0x14) {
             std::string activated = event->objectActivated->GetBaseObject()->GetName();
-            OnPlayerActivateItem(activated);
+            on_activate_event(activated);
             // NOTE: returning kStop does NOT prevent activation
         }
         return RE::BSEventNotifyControl::kContinue;
@@ -298,7 +298,7 @@ public:
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
                                           RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override {
         std::string menuName = str(event->menuName);
-        OnMenuOpenClose(menuName,event->opening);
+        on_menu_open_close(menuName,event->opening);
         return RE::BSEventNotifyControl::kContinue;
     }
 
@@ -307,7 +307,7 @@ public:
     std::jthread stepThread;
     std::atomic_bool stepQueued{ false };
 
-    void StartStepLoop()
+    void step_loop_start()
     {
         auto* task = SKSE::GetTaskInterface();
         if (!task) {
@@ -325,12 +325,12 @@ public:
                 // Prevent piling up tasks if the previous step has not run yet.
                 if (stepQueued.exchange(true)) { continue;}
 
-                SKSE::GetTaskInterface()->AddTask([this]() { stepQueued = false; Step200ms(); });
+                SKSE::GetTaskInterface()->AddTask([this]() { stepQueued = false; step_200msec(); });
             }
         });
     }
 
-    void StopStepLoop()
+    void step_loop_stop()
     {
         if (stepThread.joinable()) {
             stepThread.request_stop();
@@ -345,10 +345,10 @@ public:
 
 // ***** papyrus 
 
-    static std::string Papyrus_GetVersion(RE::StaticFunctionTag*) { return "FGTweak.v01"; }
-    static bool MyRegisterPapyrus(RE::BSScript::IVirtualMachine *vm)
+    static std::string papyrus_GetVersion(RE::StaticFunctionTag*) { return "FGTweak.v01"; }
+    static bool my_register_papyrus(RE::BSScript::IVirtualMachine *vm)
     {
-        vm->RegisterFunction("GetVersion","FGTweak",Papyrus_GetVersion);
+        vm->RegisterFunction("GetVersion","FGTweak",papyrus_GetVersion);
         return true;
     }
 
@@ -375,7 +375,7 @@ public:
 // ***** SKSE api 
 
     // loader skse plugin entry point
-    bool OnPluginLoad(const SKSE::LoadInterface *skse)
+    bool on_plugin_load(const SKSE::LoadInterface *skse)
     {
         logger.logger_init();
         SKSE::Init(skse);
@@ -394,19 +394,19 @@ public:
         r.skse.oregistry        = my_error_if_null("skse.oregistry"     ,SKSE::GetObjectRegistry()); // SKSEObjectRegistry*
         r.skse.persist          = my_error_if_null("skse.persist"       ,SKSE::GetPersistentObjectStorage()); // SKSEPersistentObjectStorage*
 
-        if (r.skse.papyrus) r.skse.papyrus->Register(MyRegisterPapyrus);
+        if (r.skse.papyrus) r.skse.papyrus->Register(my_register_papyrus);
         
-	    if (auto* src = SKSE::GetCrosshairRefEventSource()) src->AddEventSink(GetEventSink()); else logger.info("GetCrosshairRefEventSource=null?");
+	    if (auto* src = SKSE::GetCrosshairRefEventSource()) src->AddEventSink(get_event_sink()); else logger.info("GetCrosshairRefEventSource=null?");
 
 	    if (auto* src = RE::ScriptEventSourceHolder::GetSingleton())
         {
-            src->AddEventSink<RE::TESActivateEvent>(GetEventSink()); 
+            src->AddEventSink<RE::TESActivateEvent>(get_event_sink()); 
         } else { logger.info("ScriptEventSourceHolder=null?"); }
         
-        if (auto* src = RE::UI::GetSingleton()) src->AddEventSink<RE::MenuOpenCloseEvent>(GetEventSink());
+        if (auto* src = RE::UI::GetSingleton()) src->AddEventSink<RE::MenuOpenCloseEvent>(get_event_sink());
 
 	    r.skse.message->RegisterListener([](SKSE::MessagingInterface::Message *message) {
-            gFGTweakMain.OnMsgInterfaceMsg(message);
+            gFGTweakMain.on_msg_interface_msg(message);
         });
         return true;
     }
@@ -415,5 +415,5 @@ public:
 // loader skse plugin entry point
 SKSEPluginLoad(const SKSE::LoadInterface *skse)
 {
-    return gFGTweakMain.OnPluginLoad(skse);
+    return gFGTweakMain.on_plugin_load(skse);
 }
