@@ -1,4 +1,5 @@
 #pragma once
+#include "fg_enable.h"
 
 class fg_memory_info { public:
     uint64_t total_virtual_memory;

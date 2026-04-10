@@ -1,6 +1,7 @@
 #include "PCH.h"
 #include "PCH_win.h"
 #include "fg_win.h"
+#include "fg_enable.h"
 
 std::optional<fg_memory_info> win_get_memory_info()
 {
@@ -18,6 +19,7 @@ std::optional<fg_memory_info> win_get_memory_info()
 // GameOverlayRenderer64.dll , GameOverlayRenderer.dll
 std::optional<std::set<std::string>> win_list_processes()
 {
+    #ifdef ENABLE_WIN_LIST_PROCESSES
     HMODULE modules[1024];
     DWORD needed;
     if (!EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &needed)) return std::nullopt;
@@ -29,4 +31,7 @@ std::optional<std::set<std::string>> win_list_processes()
         if (GetModuleFileNameA(modules[i], name, MAX_PATH)) res.emplace(name);
     }
     return res;
+    #else
+    return false;
+    #endif
 }

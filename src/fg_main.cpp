@@ -4,6 +4,7 @@
 #include "fg_log.h" // logger.info
 #include "fg_str_util.h" // str
 #include "fg_notification.h"
+#include "fg_enable.h"
 
 // TODO: check pagefile > 20gb
 // TODO: warn if overlay apps are running
@@ -67,6 +68,7 @@ public:
 
 // ***** overlay_warning
 
+    #ifdef ENABLE_OVERLAY_CHECK
     // overwlay warnings
     std::set<std::string> ow_discord = { "CoreUIComponents.dll" }; // TODO: can this come from other apps too ?
     std::set<std::string> ow_steam = { "GameOverlayRenderer64.dll","GameOverlayRenderer.dll" };
@@ -82,16 +84,46 @@ public:
         }
         return false;
     }
+    #endif
 
-    bool overlay_warning_check_enabled = true;
-    void overlay_warning_check ()
+    std::optional<std::set<std::string>> ow_v_proc;
+    bool overlay_steam      = false;
+    bool overlay_discord    = false;
+    bool overlay_any        = false;
+
+    void overlay_warning_init ()
     {
-        if (!overlay_warning_check_enabled) return;
-        overlay_warning_check_enabled = false; // only once
-        std::optional<std::set<std::string>> v_proc = win_list_processes();
-        bool overlay_steam = has_proc(v_proc,ow_steam);
-        bool overlay_discord = has_proc(v_proc,ow_discord);
-        logger.info("overlay_warning_check, #processes={} overlays: steam={} discord={}",v_proc?std::to_string(v_proc->size()):"(none)",overlay_steam,overlay_discord);
+        #ifdef ENABLE_OVERLAY_CHECK
+        static bool done = false;
+        if (done) return; else done = true; // only once
+        ow_v_proc = win_list_processes();
+        overlay_steam = has_proc(ow_v_proc,ow_steam);
+        overlay_discord = has_proc(ow_v_proc,ow_discord);
+        logger.info("overlay_warning_init, #processes={} overlays: steam={} discord={}",ow_v_proc?std::to_string(ow_v_proc->size()):"(none)",overlay_steam,overlay_discord);
+        
+        overlay_any = overlay_steam | overlay_discord;
+        overlay_any |= has_proc(ow_v_proc,{"medal","Experience","Overwolf","Afterburner"});
+        #endif
+    }
+
+    void overlay_warning_notification ()
+    {
+        #ifdef ENABLE_OVERLAY_CHECK
+        overlay_warning_init();
+        if (!overlay_any) return;
+        RE::DebugNotification("if you experience crashes, try disabling");
+        RE::DebugNotification("overlays like steam, discord, medal,");
+        RE::DebugNotification("GeForce Experience, Overwolf, MSI Afterburner");
+        #endif
+    }
+
+    void overlay_warning_msg_boxes ()
+    {
+        #ifdef ENABLE_OVERLAY_CHECK
+        static bool done = false;
+        if (done) return; else done = true; // only once per skyrim start
+        overlay_warning_init();
+        auto& v_proc = ow_v_proc;
         if (v_proc) for (auto s : *v_proc)
         {
             s = s.substr(s.find_last_of('\\') + 1); // remove anything before last backslash
@@ -117,6 +149,7 @@ public:
         if (has_proc(v_proc,{"Experience"})     ) ow_warn_aux("GeForce Experience");
         if (has_proc(v_proc,{"Overwolf"})       ) ow_warn_aux("Overwolf");
         if (has_proc(v_proc,{"Afterburner"})    ) ow_warn_aux("MSI Afterburner");
+        #endif
     }
     
 // ***** step
@@ -124,11 +157,14 @@ public:
     bool enabled_setup_help = true;
     size_t c_step = 0;
     bool need_init = true;
+    int c_setup_teleport = 3;
+    int setup_help_teleport_message_countdown = 0;
 
     void on_game_start (std::uint32_t imsg) // called once for new and twice for load: pre+post
     {
         enabled_setup_help = true;
-        if (imsg == SKSE::MessagingInterface::kNewGame) overlay_warning_check();
+        // if (imsg == SKSE::MessagingInterface::kNewGame) overlay_warning_msg_boxes();
+        if (imsg != SKSE::MessagingInterface::kPreLoadGame) overlay_warning_notification();
         if (imsg != SKSE::MessagingInterface::kPostLoadGame)
         {
             need_init = true;
@@ -151,9 +187,34 @@ public:
 
         if (enabled_setup_help)
         {
-            bool rol = update_is_player_in_rol();
-            if (rol) { logger.info("not in starting area -> disabling setup_help"); enabled_setup_help = false; return; }
-            
+            update_player_pos();
+            if (!_is_player_in_rol) { logger.info("not in starting area -> disabling setup_help"); enabled_setup_help = false; return; }
+
+            if (last_game_start_was_new() && !_is_player_at_spawn && c_setup_teleport > 0)
+            {
+                c_setup_teleport--;
+                logger.info("setup helper teleport back to spawn, remaining={}",c_setup_teleport);
+
+                RE::Actor* actor = get_player_actor();     
+                if (actor) actor->SetPosition(ROL_spawn_pos, true);
+                setup_help_teleport_message_countdown = 2;
+            }
+
+            if (setup_help_teleport_message_countdown > 0)
+            {
+                if (--setup_help_teleport_message_countdown == 0)
+                {
+                    std::string msg_long = "please finish setup\r\nbefore moving around\r\nsee the guide on the website, step 5";
+                    std::string msg_short = "please finish setup before moving";
+
+                    // Show a "Debug Notification" (displays in the top-left corner of the game)
+                    RE::DebugNotification(msg_short.c_str());
+
+                    // Popup a "Debug MessageBox" (with an OK button)
+                    RE::DebugMessageBox(msg_long.c_str());
+                }
+            }
+
             if (b_10s) {
                 std::optional<std::string> n = fg_notification_get_last();
                 logger.info("step 10s, last_notification={}",n?*n:"(none)");
@@ -258,9 +319,6 @@ public:
 
 // ***** setup reminder / cage
 
-    const RE::NiPoint3 ROL_spawn_pos{5575.0f,-17411.0f,4683.0f}; // z+140 = in the air during jump so player can fall down to the ground vs height
-    const float dist_ROL_area = 15000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet) : seen d=7500 on other side from start
-    const float dist_ROL_cage = 200.0f; // 2 steps ~ 120
     std::set<std::string> last_quests;
 
     void on_hotkey_test () // F7
@@ -283,26 +341,14 @@ public:
             auto p0 = ROL_spawn_pos;
             RE::NiPoint3 pos = niav->worldBound.center;
             float d = pos.GetDistance(p0);
-            bool in_rol = d < dist_ROL_area;
-            bool in_cage = d < dist_ROL_cage;
+            update_player_pos();
+            bool in_rol = _is_player_in_rol;
+            bool in_cage = _is_player_at_spawn;
             logger.info("bound={} d={} in_rol={} in_cage={}",str(niav->worldBound),d,in_rol,in_cage); 
             // ROL charcreate during: 5576.5,-17423.7,4517.7,r=127.7 scene=null
             // ROL charcreate after:  5580.3,-17413.1,4575.9,r=1 (firstperson)
             // ROL charcreate after:  5580.5,-17421.6,4563.7,r=75.7 (3rdperson)
             // ROL walk 2 steps    :  5582.7,-17542.4,4548.7,r=74.5 (3rdperson) , x+-2 y+-120 z+-15
-            if (in_rol && !in_cage)
-            {
-                actor->SetPosition(p0, true);
-                
-                std::string msg_long = "please finish setup\r\nbefore moving around\r\nsee the guide on the website, step 5";
-                std::string msg_short = "please finish setup before moving";
-
-                // Show a "Debug Notification" (displays in the top-left corner of the game)
-                RE::DebugNotification(msg_short.c_str());
-
-                // Popup a "Debug MessageBox" (with an OK button)
-                RE::DebugMessageBox(msg_long.c_str());
-            }
         }
         
         if (auto* dataHandler = RE::TESDataHandler::GetSingleton())
@@ -344,17 +390,28 @@ public:
 // ***** actor utils
 
     // TODO: cache in bool once we have a 100msec step function
-    bool is_player_in_rol () { return update_is_player_in_rol(); }
+    bool is_player_in_rol () { update_player_pos(); return _is_player_in_rol; }
 
-    bool update_is_player_in_rol ()
+    bool _has_player_pos = false;
+    bool _is_player_in_rol = false;
+    bool _is_player_at_spawn = false;
+    
+    const RE::NiPoint3 ROL_spawn_pos{5575.0f,-17411.0f,4683.0f}; // z+140 = in the air during jump so player can fall down to the ground vs height
+    const float dist_ROL_area = 15000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet) : seen d=7500 on other side from start
+    const float dist_ROL_cage = 200.0f; // 2 steps ~ 120
+
+    bool update_player_pos ()
     {
         RE::Actor* actor = get_player_actor();       
         if (!actor) return false;
         RE::NiAVObject* niav = actor->Get3D2();
         if (!niav) return false;
         RE::NiPoint3 pos = niav->worldBound.center;
+        _has_player_pos = true;
         float d = pos.GetDistance(ROL_spawn_pos);
-        return d < dist_ROL_area;
+        _is_player_in_rol = d < dist_ROL_area;
+        _is_player_at_spawn = d < dist_ROL_cage;
+        return _is_player_in_rol;
     }
     
     RE::Actor* get_player_actor () {
