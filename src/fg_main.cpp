@@ -31,21 +31,17 @@ public:
     // kDataLoaded
     void OnDataLoaded()
     {
-        // NOTE: RE::ConsoleLog::GetSingleton()->Print wont work before kDataLoaded
+        // NOTE: logger/RE::ConsoleLog::GetSingleton()->Print wont work before kDataLoaded
         LoadSettings();
         
         // PageFile warning
         constexpr uint64_t gb = 1ull * 1024 * 1024 * 1024; // 20 GB
         constexpr uint64_t pagefile_min = 20ull * gb;
         std::optional<fg_memory_info> mi = win_get_memory_info();
-        std::string meminfo = "unknown";
-        if (mi) 
-        {
-            meminfo = std::format("physical memory: {} GB, page file: {} GB",
+        std::string meminfo = mi ? "unknown" : std::format("physical memory: {} GB, page file: {} GB",
                 mi->physical_memory/gb,
                 mi->page_file_size/gb
             );
-        }
 
         logger.info("OnDataLoaded, version={} meminfo={}",sVersionInfo,meminfo);
         
@@ -66,16 +62,19 @@ public:
     {
         ++c_step;
         [[maybe_unused]] bool b_1s  = (c_step % (5*1)) == 0;
+        [[maybe_unused]] bool b_5s  = (c_step % (5*5)) == 0;
         [[maybe_unused]] bool b_10s = (c_step % (5*10)) == 0;
         if (b_10s) {
-            logger.info("step 10s");
+            std::optional<std::string> n = fg_notification_get_last();
+            logger.info("step 10s, last_notification={}",n?*n:"(none)");
         }
+        // if (has_game_start() && )
         // Safe Skyrim access here
     }
 
 // ***** config/.ini file
 
-    CSimpleIniA iniFile;
+    CSimpleIniA iniFile; // see SimpleIni.h : vcpkg https://github.com/brofield/simpleini
     void LoadSettings() {
         iniFile.LoadFile(L"Data/SKSE/Plugins/FGTweak.ini");
         // const char *key_value = iniFile.GetValue("MyKeyName", "MyDefaultValue");
