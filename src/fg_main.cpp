@@ -65,6 +65,11 @@ public:
 
 // ***** skse events
 
+    std::optional<std::uint32_t> last_start_imsg;
+    bool has_start () { return last_start_imsg?true:false; }
+    bool last_start_was_new_game  () { return has_start() && *last_start_imsg == SKSE::MessagingInterface::kNewGame; }
+    bool last_start_was_load_game () { return has_start() && (*last_start_imsg == SKSE::MessagingInterface::kPreLoadGame || *last_start_imsg == SKSE::MessagingInterface::kPostLoadGame); }
+
     // MessagingInterface listener : input=hotkeys, kDataLoaded
     void OnMsgInterfaceMsg (SKSE::MessagingInterface::Message *message)
     {
@@ -75,11 +80,11 @@ public:
         }
         if (message->type == SKSE::MessagingInterface::kPostLoad)       { logger.info("kPostLoad"); }
         if (message->type == SKSE::MessagingInterface::kPostPostLoad)   { logger.info("kPostPostLoad"); OnPostPostLoad(); }
-        if (message->type == SKSE::MessagingInterface::kPreLoadGame)    { logger.info("kPreLoadGame"); }
-        if (message->type == SKSE::MessagingInterface::kPostLoadGame)   { logger.info("kPostLoadGame"); }
+        if (message->type == SKSE::MessagingInterface::kPreLoadGame)    { logger.info("kPreLoadGame"); last_start_imsg = message->type; }
+        if (message->type == SKSE::MessagingInterface::kPostLoadGame)   { logger.info("kPostLoadGame"); last_start_imsg = message->type; }
         if (message->type == SKSE::MessagingInterface::kSaveGame)       { logger.info("kSaveGame"); }
         if (message->type == SKSE::MessagingInterface::kDeleteGame)     { logger.info("kDeleteGame"); }
-        if (message->type == SKSE::MessagingInterface::kNewGame)        { logger.info("kNewGame"); }
+        if (message->type == SKSE::MessagingInterface::kNewGame)        { logger.info("kNewGame"); last_start_imsg = message->type; }
         if (message->type == SKSE::MessagingInterface::kDataLoaded)     { logger.info("kDataLoaded"); OnDataLoaded(); }
     }
 
