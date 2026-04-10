@@ -188,7 +188,8 @@ public:
         if (enabled_setup_help)
         {
             update_player_pos();
-            if (!_is_player_in_rol) { logger.info("not in starting area -> disabling setup_help"); enabled_setup_help = false; return; }
+            if (!_has_player_pos) return; // still early
+            if (_has_player_pos && !_is_player_in_rol) { logger.info("not in starting area -> disabling setup_help"); enabled_setup_help = false; return; }
 
             if (last_game_start_was_new() && !_is_player_at_spawn && c_setup_teleport > 0)
             {
@@ -398,7 +399,7 @@ public:
     
     const RE::NiPoint3 ROL_spawn_pos{5575.0f,-17411.0f,4683.0f}; // z+140 = in the air during jump so player can fall down to the ground vs height
     const float dist_ROL_area = 15000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet) : seen d=7500 on other side from start
-    const float dist_ROL_cage = 200.0f; // 2 steps ~ 120
+    const float dist_ROL_spawn = 200.0f; // 2 steps ~ 120
 
     bool update_player_pos ()
     {
@@ -407,10 +408,14 @@ public:
         RE::NiAVObject* niav = actor->Get3D2();
         if (!niav) return false;
         RE::NiPoint3 pos = niav->worldBound.center;
-        _has_player_pos = true;
         float d = pos.GetDistance(ROL_spawn_pos);
         _is_player_in_rol = d < dist_ROL_area;
-        _is_player_at_spawn = d < dist_ROL_cage;
+        _is_player_at_spawn = d < dist_ROL_spawn;
+        if (!_has_player_pos)
+        {
+            logger.info("update_player_pos first: d={} rol={} spawn={} pos={}",d,_is_player_in_rol,_is_player_at_spawn,str(pos));
+            _has_player_pos = true;
+        }
         return _is_player_in_rol;
     }
     
