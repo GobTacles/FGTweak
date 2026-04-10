@@ -124,8 +124,12 @@ public:
     {
         #ifdef ENABLE_OVERLAY_CHECK
         if (overlay_warning_notification_countdown == 0) return;
+        update_player_pos();
+        if (!_has_player_pos) return; // still early, before player+racemenu is fully loaded
         if (--overlay_warning_notification_countdown > 0) return;
+        if (_has_player_pos && _is_player_in_rol) { logger.info("overlay_warning_notification delayed: player is in starting area -> ignore"); return; }
         logger.info("overlay_warning_notification delayed");
+        
         RE::DebugNotification("GeForce Experience, Overwolf, MSI Afterburner");
         RE::DebugNotification("overlays like steam, discord, medal,");
         RE::DebugNotification("if you experience crashes, try disabling");
