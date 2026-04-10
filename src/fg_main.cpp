@@ -211,6 +211,11 @@ public:
 
         std::optional<std::string> n = fg_notification_get_last();
         if (n) logger.info("last_notification={}",*n);
+        // Unforgiving Devices updated
+        // Restraining followers...
+        // Restrained 17 followers!
+        // [McmRecorder] 0011_T.N.G..json (11/51)
+        // [McmRecorder] 0012_Scrappies Matchmaker.json (12/51)
     }
 
 // ***** actor utils
