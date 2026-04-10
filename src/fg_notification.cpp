@@ -18,13 +18,18 @@ namespace NotificationLogger::detail {
             while (this->_notifications.size() >= MAX_BUFFER_SIZE) {
                 this->_notifications.pop_back();
             }
-
+            ++_total_notifications;
             this->_notifications.emplace_front(a_message);
         }
 
         [[nodiscard]] auto GetMessages() const noexcept -> std::vector<std::string> {
             const auto _ = std::unique_lock(this->_lock);
             return std::vector(this->_notifications.begin(), this->_notifications.end());
+        }
+
+        [[nodiscard]] auto GetTotalNotifications() const noexcept -> std::size_t {
+            const auto _ = std::unique_lock(this->_lock);
+            return _total_notifications;
         }
 
         [[nodiscard]] auto GetLastMessage() const noexcept -> std::optional<std::string> {
@@ -39,6 +44,7 @@ namespace NotificationLogger::detail {
         static constexpr std::size_t MAX_BUFFER_SIZE = 128;
         mutable std::mutex _lock;
         std::list<std::string> _notifications;
+        size_t _total_notifications;
     };
 
     struct CreateHUDDataMessage {
@@ -64,6 +70,12 @@ namespace NotificationLogger::Hooks {
         detail::CreateHUDDataMessage::func = trampoline.write_call<5>(target, detail::CreateHUDDataMessage::thunk);
     }
 }  // namespace NotificationLogger::Hooks
+
+size_t fg_notification_get_total()
+{
+    auto& proxy = NotificationLogger::detail::Proxy::GetSingleton();
+    return proxy.GetTotalNotifications();
+}
 
 std::vector<std::string> fg_notification_get_cached()
 {

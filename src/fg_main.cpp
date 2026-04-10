@@ -65,7 +65,9 @@ public:
     void Step200ms()
     {
         ++c_step;
-        if ((c_step % (5*10)) == 0) {
+        [[maybe_unused]] bool b_1s  = (c_step % (5*1)) == 0;
+        [[maybe_unused]] bool b_10s = (c_step % (5*10)) == 0;
+        if (b_10s) {
             logger.info("step 10s");
         }
         // Safe Skyrim access here
@@ -209,7 +211,7 @@ public:
             auto& quests = dataHandler->GetFormArray<RE::TESQuest>();
             bool last_q_was_empty = last_quests.empty();
             size_t c_q_printed = 0;
-            size_t c_q_max_print = 20;
+            size_t c_q_max_print = 50;
             for (auto* q : quests) {
                 if (!q || !q->IsEnabled()) continue; // IsEnabled,IsRunning
                 std::string qname = q->GetName();
