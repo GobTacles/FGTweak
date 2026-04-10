@@ -65,7 +65,7 @@ public:
     void Step200ms()
     {
         ++c_step;
-        if ((c_step % 5*10) == 0) {
+        if ((c_step % (5*10)) == 0) {
             logger.info("step 10s");
         }
         // Safe Skyrim access here
@@ -319,19 +319,12 @@ public:
 
             while (!stopToken.stop_requested()) {
                 std::this_thread::sleep_for(200ms);
-                if (stopToken.stop_requested()) {
-                    break;
-                }
+                if (stopToken.stop_requested()) { break; }
 
                 // Prevent piling up tasks if the previous step has not run yet.
-                if (stepQueued.exchange(true)) {
-                    continue;
-                }
+                if (stepQueued.exchange(true)) { continue;}
 
-                SKSE::GetTaskInterface()->AddTask([this]() {
-                    stepQueued = false;
-                    Step200ms();
-                });
+                SKSE::GetTaskInterface()->AddTask([this]() { stepQueued = false; Step200ms(); });
             }
         });
     }
