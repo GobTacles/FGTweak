@@ -57,19 +57,43 @@ public:
     
 // ***** step
 
+    bool enabled_setup_help = true;
     size_t c_step = 0;
+    bool need_init = true;
+
+    void on_game_start (std::uint32_t imsg) // called once for new and twice for load: pre+post
+    {
+        enabled_setup_help = true;
+        if (imsg != SKSE::MessagingInterface::kPostLoadGame)
+        {
+            need_init = true;
+        }
+    }
+
     void step_200msec()
     {
+        if (!has_game_start()) return; // still early in skyrim main menu
+        if (last_game_start_was_pre_load()) return; // wait until load is finished
         ++c_step;
         [[maybe_unused]] bool b_1s  = (c_step % (5*1)) == 0;
         [[maybe_unused]] bool b_5s  = (c_step % (5*5)) == 0;
         [[maybe_unused]] bool b_10s = (c_step % (5*10)) == 0;
-        if (b_10s) {
-            std::optional<std::string> n = fg_notification_get_last();
-            logger.info("step 10s, last_notification={}",n?*n:"(none)");
+
+        if (need_init)
+        {
+            need_init = false;
         }
-        // if (has_game_start() && )
-        // Safe Skyrim access here
+
+        if (enabled_setup_help)
+        {
+            bool rol = update_is_player_in_rol();
+            if (rol) { logger.info("not in starting area -> disabling setup_help"); enabled_setup_help = false; return; }
+            
+            if (b_10s) {
+                std::optional<std::string> n = fg_notification_get_last();
+                logger.info("step 10s, last_notification={}",n?*n:"(none)");
+            }
+        }
     }
 
 // ***** config/.ini file
@@ -86,7 +110,8 @@ public:
     bool has_game_start () { return game_start_imsg?true:false; }
     bool last_game_start_was_new  () { return has_game_start() && *game_start_imsg == SKSE::MessagingInterface::kNewGame; }
     bool last_game_start_was_load () { return has_game_start() && (*game_start_imsg == SKSE::MessagingInterface::kPreLoadGame || *game_start_imsg == SKSE::MessagingInterface::kPostLoadGame); }
-    void on_game_start (std::uint32_t imsg) { game_start_imsg = imsg; }
+    bool last_game_start_was_pre_load () { return has_game_start() && *game_start_imsg == SKSE::MessagingInterface::kPreLoadGame; }
+    void notify_game_start (std::uint32_t imsg) { game_start_imsg = imsg; on_game_start(imsg); }
 
     // MessagingInterface listener : input=hotkeys, kDataLoaded
     void on_msg_interface_msg (SKSE::MessagingInterface::Message *message)
@@ -94,15 +119,15 @@ public:
         if (message->type == SKSE::MessagingInterface::kInputLoaded)
         {
             logger.info("kInputLoaded"); 
-            RE::BSInputDeviceManager::GetSingleton()->AddEventSink(this);
+            RE::BSInputDeviceManager::GetSingleton()->AddEventSink(this); // hotkeys
         }
         if (message->type == SKSE::MessagingInterface::kPostLoad)       { logger.info("kPostLoad"); }
         if (message->type == SKSE::MessagingInterface::kPostPostLoad)   { logger.info("kPostPostLoad"); on_post_post_load(); }
-        if (message->type == SKSE::MessagingInterface::kPreLoadGame)    { logger.info("kPreLoadGame"); on_game_start(message->type); }
-        if (message->type == SKSE::MessagingInterface::kPostLoadGame)   { logger.info("kPostLoadGame"); on_game_start(message->type); }
+        if (message->type == SKSE::MessagingInterface::kPreLoadGame)    { logger.info("kPreLoadGame"); notify_game_start(message->type); }
+        if (message->type == SKSE::MessagingInterface::kPostLoadGame)   { logger.info("kPostLoadGame"); notify_game_start(message->type); }
         if (message->type == SKSE::MessagingInterface::kSaveGame)       { logger.info("kSaveGame"); }
         if (message->type == SKSE::MessagingInterface::kDeleteGame)     { logger.info("kDeleteGame"); }
-        if (message->type == SKSE::MessagingInterface::kNewGame)        { logger.info("kNewGame"); on_game_start(message->type); }
+        if (message->type == SKSE::MessagingInterface::kNewGame)        { logger.info("kNewGame"); notify_game_start(message->type); }
         if (message->type == SKSE::MessagingInterface::kDataLoaded)     { logger.info("kDataLoaded"); on_data_loaded(); }
     }
 
@@ -114,6 +139,7 @@ public:
     // hotkeys
     void on_button_down(RE::ButtonEvent* button)
     {
+        if (!enabled_setup_help) return;
         auto dxScanCode = button->GetIDCode();
         // logger.info("on_button_down {}", dxScanCode);
         if (dxScanCode == SCANCODE_test) on_hotkey_test();
@@ -123,12 +149,14 @@ public:
     
     void on_activate_event (std::string itemName)
     {
+        if (!enabled_setup_help) return;
         if (!is_player_in_rol()) return;
         if (itemName == name_shard) logger.info("on_activate_event '{}'",itemName);
     }
     
     void on_crosshair_event (const SKSE::CrosshairRefEvent* e)
     {
+        if (!enabled_setup_help) return;
         if (!is_player_in_rol()) return;
 
         // WARNING: BaseObject is the "class" (like all bandits) rather than the "instance" (this particular bandit)
@@ -149,6 +177,7 @@ public:
 
     void on_menu_open_close (std::string menuName,bool opening)
     {
+        if (!enabled_setup_help) return;
         if (ignore_menu.contains(menuName)) return;
         // bool is_racemenu = menuName == "RaceSex Menu";
         // bool is_msgbox = menuName == "MessageBoxMenu";
@@ -243,9 +272,11 @@ public:
 
 // ***** actor utils
 
-    bool is_player_in_rol ()
+    // TODO: cache in bool once we have a 100msec step function
+    bool is_player_in_rol () { return update_is_player_in_rol(); }
+
+    bool update_is_player_in_rol ()
     {
-        // TODO: cache in bool once we have a 100msec step function
         RE::Actor* actor = get_player_actor();       
         if (!actor) return false;
         RE::NiAVObject* niav = actor->Get3D2();
