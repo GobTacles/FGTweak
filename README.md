@@ -12,8 +12,7 @@
 - if you are part of fg staff, just ask for access to the main org/repo
 - otherwise create your own fork of the repo on the github website
 - edit c++ code files like src/*.cpp directly on the github website
-- a github workflow should automatically compile the DLL when you push to the main branch
-- takes about 10 minutes each time for commonlib compile. we're still working on getting recompile faster with cache.
+- a github workflow should automatically compile the DLL when you push to the main branch (about 2 minutes)
 - you can download a zip with the DLL on the project/fork page under "actions" 
 - you can configure workflow compile trigger conditions etc in .github/workflows/build.yml
 
@@ -74,6 +73,11 @@ Reboot your PC after changing environment variables.
 - copy .vscode/settings.json.dist to .vscode/settings.json
 
 ## background infos
+
+### github workflow
+
+- to debug workflow timing add the following to CMakePresets.json under ci-release..cacheVariables 
+- `"VCPKG_INSTALL_OPTIONS": "--debug"`
 
 ### CommonLibSSE NG info
 
