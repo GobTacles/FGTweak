@@ -24,7 +24,7 @@ public:
 
     cFGTweakMain* get_event_sink () { return this; }
 
-    const std::string sVersionInfo = ".v0.1.0";
+    const char* sVersionInfo = "v0.1.0";
 	const uint32_t SCANCODE_test = 65; // f1=59.. f7=65  f11=87 
 
 // ***** start late1 (data loaded)
@@ -33,9 +33,10 @@ public:
     void on_data_loaded()
     {
         // NOTE: logger/RE::ConsoleLog::GetSingleton()->Print wont work before kDataLoaded
+        logger.info("version={}",sVersionInfo);
+
         load_settings();
         
-
         step_loop_start();
     }
 
@@ -56,7 +57,7 @@ public:
                 mi->page_file_size/gb
             ) : "unknown";
 
-        logger.info("on_main_menu_check, version={} meminfo={}",sVersionInfo,meminfo);
+        logger.info("on_main_menu_check meminfo={}",meminfo);
         
         #ifdef ENABLE_PAGE_FILE_CHECK
         if (mi && (mi->page_file_size < pagefile_min))
@@ -108,13 +109,23 @@ public:
         #endif
     }
 
+    int overlay_warning_notification_countdown = 0;
     void overlay_warning_notification ()
     {
         #ifdef ENABLE_OVERLAY_CHECK
         overlay_warning_init();
         logger.info("overlay_warning_notification... overlay_any={}",overlay_any);
         if (!overlay_any) return;
-        // TODO: delay?
+        overlay_warning_notification_countdown = 5*20; // 20sec delay, step=200msec
+        #endif
+    }
+
+    void overlay_warning_notification_step ()
+    {
+        #ifdef ENABLE_OVERLAY_CHECK
+        if (overlay_warning_notification_countdown == 0) return;
+        if (--overlay_warning_notification_countdown > 0) return;
+        logger.info("overlay_warning_notification delayed");
         RE::DebugNotification("if you experience crashes, try disabling");
         RE::DebugNotification("overlays like steam, discord, medal,");
         RE::DebugNotification("GeForce Experience, Overwolf, MSI Afterburner");
@@ -162,7 +173,6 @@ public:
 
     bool enabled_setup_help = true;
     size_t c_step = 0;
-    bool need_init = true;
     int c_setup_teleport = 3;
     int setup_help_teleport_message_countdown = 0;
 
@@ -171,25 +181,17 @@ public:
         enabled_setup_help = true;
         if (imsg == SKSE::MessagingInterface::kNewGame) overlay_warning_msg_boxes();
         if (imsg != SKSE::MessagingInterface::kPreLoadGame) overlay_warning_notification();
-        if (imsg != SKSE::MessagingInterface::kPostLoadGame)
-        {
-            need_init = true;
-        }
     }
 
     void step_200msec()
     {
         if (!has_game_start()) return; // still early in skyrim main menu
         if (last_game_start_was_pre_load()) return; // wait until load is finished
+        overlay_warning_notification_step(); // just delayed notification
         ++c_step;
         [[maybe_unused]] bool b_1s  = (c_step % (5*1)) == 0;
         [[maybe_unused]] bool b_5s  = (c_step % (5*5)) == 0;
         [[maybe_unused]] bool b_10s = (c_step % (5*10)) == 0;
-
-        if (need_init)
-        {
-            need_init = false;
-        }
 
         if (enabled_setup_help)
         {
@@ -484,10 +486,7 @@ public:
     void step_loop_start()
     {
         auto* task = SKSE::GetTaskInterface();
-        if (!task) {
-            logger.info("TaskInterface=null");
-            return;
-        }
+        if (!task) { logger.info("TaskInterface=null"); return; }
 
         stepThread = std::jthread([this](std::stop_token stopToken) {
             using namespace std::chrono_literals;
@@ -497,7 +496,7 @@ public:
                 if (stopToken.stop_requested()) { break; }
 
                 // Prevent piling up tasks if the previous step has not run yet.
-                if (stepQueued.exchange(true)) { continue;}
+                if (stepQueued.exchange(true)) { continue; }
 
                 SKSE::GetTaskInterface()->AddTask([this]() { stepQueued = false; step_200msec(); });
             }
