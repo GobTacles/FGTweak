@@ -58,18 +58,20 @@ public:
 
         logger.info("on_main_menu_check, version={} meminfo={}",sVersionInfo,meminfo);
         
-        if (!mi || mi->page_file_size < pagefile_min)
+        #ifdef ENABLE_PAGE_FILE_CHECK
+        if (mi && (mi->page_file_size < pagefile_min))
         {
             std::string msg = std::format("[FGTweak] PageFile Warning:\r\nPlease set the Windows PageFile to at least 20 GB\r\n{}\r\nWrite !pagefile in our discord for instructions",
                 meminfo);
             RE::DebugMessageBox(msg.c_str());
         }
+        #endif
     }
 
 // ***** overlay_warning
 
     #ifdef ENABLE_OVERLAY_CHECK
-    // overwlay warnings
+    // overlay warnings
     std::set<std::string> ow_discord = { "CoreUIComponents.dll" }; // TODO: can this come from other apps too ?
     std::set<std::string> ow_steam = { "GameOverlayRenderer64.dll","GameOverlayRenderer.dll" };
     // steam_api64.dll gameoverlayrenderer64.dll steamclient64.dll skse64_1_6_1170.dll usvfs_x64.dll(mo2)
@@ -110,7 +112,9 @@ public:
     {
         #ifdef ENABLE_OVERLAY_CHECK
         overlay_warning_init();
+        logger.info("overlay_warning_notification... overlay_any={}",overlay_any);
         if (!overlay_any) return;
+        // TODO: delay?
         RE::DebugNotification("if you experience crashes, try disabling");
         RE::DebugNotification("overlays like steam, discord, medal,");
         RE::DebugNotification("GeForce Experience, Overwolf, MSI Afterburner");
@@ -119,6 +123,7 @@ public:
 
     void overlay_warning_msg_boxes ()
     {
+        #ifdef ENABLE_OVERLAY_MSGBOX
         #ifdef ENABLE_OVERLAY_CHECK
         static bool done = false;
         if (done) return; else done = true; // only once per skyrim start
@@ -150,6 +155,7 @@ public:
         if (has_proc(v_proc,{"Overwolf"})       ) ow_warn_aux("Overwolf");
         if (has_proc(v_proc,{"Afterburner"})    ) ow_warn_aux("MSI Afterburner");
         #endif
+        #endif
     }
     
 // ***** step
@@ -163,7 +169,7 @@ public:
     void on_game_start (std::uint32_t imsg) // called once for new and twice for load: pre+post
     {
         enabled_setup_help = true;
-        // if (imsg == SKSE::MessagingInterface::kNewGame) overlay_warning_msg_boxes();
+        if (imsg == SKSE::MessagingInterface::kNewGame) overlay_warning_msg_boxes();
         if (imsg != SKSE::MessagingInterface::kPreLoadGame) overlay_warning_notification();
         if (imsg != SKSE::MessagingInterface::kPostLoadGame)
         {
@@ -188,7 +194,7 @@ public:
         if (enabled_setup_help)
         {
             update_player_pos();
-            if (!_has_player_pos) return; // still early
+            if (!_has_player_pos) return; // still early, before player+racemenu is fully loaded
             if (_has_player_pos && !_is_player_in_rol) { logger.info("not in starting area -> disabling setup_help"); enabled_setup_help = false; return; }
 
             if (last_game_start_was_new() && !_is_player_at_spawn && c_setup_teleport > 0)
@@ -216,10 +222,12 @@ public:
                 }
             }
 
+            #ifdef ENABLE_NOTIFICATION_HOOK
             if (b_10s) {
                 std::optional<std::string> n = fg_notification_get_last();
                 logger.info("step 10s, last_notification={}",n?*n:"(none)");
             }
+            #endif
         }
     }
 
@@ -509,14 +517,16 @@ public:
     template <typename T>
     const T* my_error_if_null (const char* name, const T* p) { if (!p) logger.info("{}=null",name); return p; };
 
-// ***** papyrus 
+// ***** papyrus
 
+#ifdef ENABLE_PAPYRUS_VERSION
     static std::string papyrus_GetVersion(RE::StaticFunctionTag*) { return "FGTweak.v01"; }
     static bool my_register_papyrus(RE::BSScript::IVirtualMachine *vm)
     {
         vm->RegisterFunction("GetVersion","FGTweak",papyrus_GetVersion);
         return true;
     }
+#endif
 
 // ***** registry
 
@@ -560,7 +570,9 @@ public:
         r.skse.oregistry        = my_error_if_null("skse.oregistry"     ,SKSE::GetObjectRegistry()); // SKSEObjectRegistry*
         r.skse.persist          = my_error_if_null("skse.persist"       ,SKSE::GetPersistentObjectStorage()); // SKSEPersistentObjectStorage*
 
+        #ifdef ENABLE_PAPYRUS_VERSION
         if (r.skse.papyrus) r.skse.papyrus->Register(my_register_papyrus);
+        #endif
         
 	    if (auto* src = SKSE::GetCrosshairRefEventSource()) src->AddEventSink(get_event_sink()); else logger.info("GetCrosshairRefEventSource=null?");
 
