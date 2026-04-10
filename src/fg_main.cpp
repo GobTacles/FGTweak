@@ -141,7 +141,7 @@ public:
 
     void OnKey_Test ()
     {
-        logger.info("OnKey_Test");
+        // logger.info("OnKey_Test");
         RE::Actor* actor = get_player_actor();       
         if (!actor) return;
         RE::NiAVObject* niav = actor->Get3D2();
@@ -149,9 +149,11 @@ public:
         if (RE::BGSScene* s = actor->GetCurrentScene())
         {
             logger.info("scene=valid GetFormEditorID={} GetObjectTypeName={} GetName={}",s->GetFormEditorID(),s->GetObjectTypeName(),s->GetName());
-        } else { logger.info("scene=null"); }
+        } else {
+            // logger.info("scene=null"); 
+        }
         
-        logger.info("niav={}",niav?"valid":"null");
+        // logger.info("niav={}",niav?"valid":"null");
         if (niav)
         {
             auto p0 = ROL_spawn_pos;
@@ -184,6 +186,7 @@ public:
             auto& quests = dataHandler->GetFormArray<RE::TESQuest>();
             bool last_q_was_empty = last_quests.empty();
             size_t c_q_printed = 0;
+            size_t c_q_max_print = 20;
             for (auto* q : quests) {
                 if (!q || !q->IsEnabled()) continue; // IsEnabled,IsRunning
                 std::string qname = q->GetName();
@@ -191,7 +194,8 @@ public:
                 last_quests.emplace(qname);
                 if (last_q_was_empty) continue; // dont spam hundreds the first time
 
-                if (c_q_printed >= 20) continue; // dont spam dozens
+
+                if (c_q_printed >= c_q_max_print) continue; // dont spam dozens
                 ++c_q_printed;
                 // if (!q->IsRunning()) continue;
                 bool inHUD = q->data.flags.all(RE::QuestFlag::kDisplayedInHUD);
@@ -199,6 +203,7 @@ public:
                 bool isMisc = q->data.questType == RE::QUEST_DATA::Type::kMiscellaneous;
                 bool isSide = q->data.questType == RE::QUEST_DATA::Type::kSideQuest;
                 logger.info("+quest name={} id={} IsCompleted={} inHUD={} type={}",qname,q->GetFormEditorID(),q->IsCompleted(),inHUD,isMain?"main":isMisc?"misc":isSide?"side":"other");
+                if (c_q_printed == c_q_max_print) logger.info("+quest...");
             }
             logger.info("num_quests_active={}",last_quests.size());
         }
