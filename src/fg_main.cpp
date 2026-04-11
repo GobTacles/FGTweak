@@ -6,7 +6,6 @@
 #include "fg_notification.h"
 #include "fg_enable.h"
 
-// TODO: step_loop_stop when enabled_setup_help is disabled  .. overlay delayed? (and step_loop_start in on_game_start)
 // note: check pagefile > 20gb
 // note: warn if overlay apps are running
 // idea : maybe we can just list running quests and detect mcm recorder script running?
@@ -120,18 +119,20 @@ public:
         #endif
     }
 
-    void overlay_warning_notification_step ()
+    // return true if still waiting for something, step loop might be stopped otherwise
+    bool overlay_warning_notification_step ()
     {
         #ifdef ENABLE_OVERLAY_CHECK
-        if (overlay_warning_notification_countdown == 0) return;
+        if (overlay_warning_notification_countdown == 0) return false;
         update_player_pos();
-        if (!_has_player_pos) return; // still early, before player+racemenu is fully loaded
-        if (--overlay_warning_notification_countdown > 0) return;
-        if (_has_player_pos && _is_player_in_rol) { logger.info("overlay_warning_notification delayed: player is in starting area -> ignore"); return; }
+        if (!_has_player_pos) return true; // still early, before player+racemenu is fully loaded
+        if (--overlay_warning_notification_countdown > 0) return true;
+        if (_has_player_pos && _is_player_in_rol) { logger.info("overlay_warning_notification delayed: player is in starting area -> ignore"); return false; }
         logger.info("overlay_warning_notification delayed");
 
         show_notification(cfg.msg.overlay);
         #endif
+        return false;
     }
 
     void overlay_warning_msg_boxes ()
@@ -175,6 +176,7 @@ public:
     void on_game_start (std::uint32_t imsg) // called once for new and twice for load: pre+post
     {
         enabled_setup_help = true;
+        set_step_enabled(true);
         if (imsg == SKSE::MessagingInterface::kNewGame) overlay_warning_msg_boxes();
         if (imsg != SKSE::MessagingInterface::kPreLoadGame) overlay_warning_notification();
         c_setup_teleport = cfg.max_setup_teleport;
@@ -190,7 +192,11 @@ public:
     {
         if (!has_game_start()) return; // still early in skyrim main menu
         if (last_game_start_was_pre_load()) return; // wait until load is finished
-        overlay_warning_notification_step(); // just delayed notification
+        bool busy = false;
+        if (overlay_warning_notification_step()) busy = true; // just delayed notification
+        
+        if (!enabled_setup_help && !busy) set_step_enabled(false); // no more steps will be called until on_game_start
+
         ++c_step;
         [[maybe_unused]] bool b_1s  = (c_step % (5*1)) == 0;
         [[maybe_unused]] bool b_5s  = (c_step % (5*5)) == 0;
@@ -567,7 +573,10 @@ public:
 // ***** step thread
 
     std::jthread stepThread;
-    std::atomic_bool stepQueued{ false };
+    std::atomic_bool _step_queued{ false };
+    std::atomic_bool _step_enabled{ true };
+
+    void set_step_enabled (bool v) { _step_enabled.store(v); logger.info("set_step_enabled {}",v); }
 
     void step_loop_start()
     {
@@ -580,11 +589,12 @@ public:
             while (!stopToken.stop_requested()) {
                 std::this_thread::sleep_for(200ms);
                 if (stopToken.stop_requested()) { break; }
+                if (!_step_enabled.load()) continue;
 
                 // Prevent piling up tasks if the previous step has not run yet.
-                if (stepQueued.exchange(true)) { continue; }
+                if (_step_queued.exchange(true)) { continue; }
 
-                SKSE::GetTaskInterface()->AddTask([this]() { stepQueued = false; step_200msec(); });
+                SKSE::GetTaskInterface()->AddTask([this]() { _step_queued = false; step_200msec(); });
             }
         });
     }
