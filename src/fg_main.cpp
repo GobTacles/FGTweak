@@ -50,21 +50,20 @@ public:
         
         // PageFile warning
         constexpr uint64_t gb = 1ull * 1024 * 1024 * 1024; // 20 GB
-        constexpr uint64_t pagefile_min = 20ull * gb;
+        const uint64_t pagefile_min = ((uint64_t)cfg.min_pagefile_GB) * gb; // 20gb as number of bytes
         std::optional<fg_memory_info> mi = win_get_memory_info();
+        bool pagefile_too_small = mi && (mi->page_file_size < pagefile_min);
         std::string meminfo = mi ? std::format("physical memory: {} GB, page file: {} GB",
                 mi->physical_memory/gb,
                 mi->page_file_size/gb
             ) : "unknown";
 
-        logger.info("on_main_menu_check meminfo={}",meminfo);
+        logger.info("on_main_menu_check pagefile_too_small={} meminfo={}",pagefile_too_small,meminfo);
         
         #ifdef ENABLE_PAGE_FILE_CHECK
-        if (mi && (mi->page_file_size < pagefile_min))
+        if (pagefile_too_small)
         {
-            std::string msg = std::format("[FGTweak] PageFile Warning:\r\nPlease set the Windows PageFile to at least 20 GB\r\n{}\r\nWrite !pagefile in our discord for instructions",
-                meminfo);
-            RE::DebugMessageBox(msg.c_str());
+            show_message_box(cfg.msg.pagefile); // PageFile Warning
         }
         #endif
     }
@@ -129,10 +128,8 @@ public:
         if (--overlay_warning_notification_countdown > 0) return;
         if (_has_player_pos && _is_player_in_rol) { logger.info("overlay_warning_notification delayed: player is in starting area -> ignore"); return; }
         logger.info("overlay_warning_notification delayed");
-        
-        RE::DebugNotification("GeForce Experience, Overwolf, MSI Afterburner");
-        RE::DebugNotification("overlays like steam, discord, medal,");
-        RE::DebugNotification("if you experience crashes, try disabling");
+
+        show_notification(cfg.msg.overlay);
         #endif
     }
 
@@ -150,20 +147,13 @@ public:
             logger.info("+proc '{}'",s);
         }
 
-        if (overlay_steam) {
-            std::string msg = std::format("[FGTweak] Overlay Warning: Steam\r\nplease make sure 'steam overlay while ingame'\r\nis disabled in steam library (rclick skyrim: setting : general)");
-            RE::DebugMessageBox(msg.c_str());
-        }
-
-        if (overlay_discord) {
-            std::string msg = std::format("[FGTweak] Overlay Warning: Discord\r\nif you have discord we recommend\r\ndisabling 'game overlay' in the settings");
-            RE::DebugMessageBox(msg.c_str());
-        }
-
+        if (overlay_steam)   show_message_box(cfg.msg.overlay_msgbox_steam);
+        if (overlay_discord) show_message_box(cfg.msg.overlay_msgbox_discord);
+            
         //  medal, GeForce Experience, Overwolf, MSI Afterburner.
         auto ow_warn_aux = [this](std::string n) {
-            std::string msg = std::format("[FGTweak] Overlay Warning: {}\r\nplease make sure you have disabled overlay apps like {}",n,n);
-            RE::DebugMessageBox(msg.c_str());
+            std::string msg = std::format(overlay_msgbox_other_n_n,n,n);
+            show_message_box(msg);
         };
         if (has_proc(v_proc,{"medal"})          ) ow_warn_aux("Medal.TV");
         if (has_proc(v_proc,{"Experience"})     ) ow_warn_aux("GeForce Experience");
@@ -179,12 +169,20 @@ public:
     size_t c_step = 0;
     int c_setup_teleport = 3;
     int setup_help_teleport_message_countdown = 0;
+    int setup_help_teleport_cooldown = 0;
 
     void on_game_start (std::uint32_t imsg) // called once for new and twice for load: pre+post
     {
         enabled_setup_help = true;
         if (imsg == SKSE::MessagingInterface::kNewGame) overlay_warning_msg_boxes();
         if (imsg != SKSE::MessagingInterface::kPreLoadGame) overlay_warning_notification();
+        c_setup_teleport = cfg.max_setup_teleport;
+    }
+    
+    void on_char_create_done ()
+    {
+        logger.info("on_char_create_done");
+        show_message_box(cfg.msg.setup); // setup guide
     }
 
     void step_200msec()
@@ -203,28 +201,27 @@ public:
             if (!_has_player_pos) return; // still early, before player+racemenu is fully loaded
             if (_has_player_pos && !_is_player_in_rol) { logger.info("not in starting area -> disabling setup_help"); enabled_setup_help = false; return; }
 
-            if (last_game_start_was_new() && !_is_player_at_spawn && c_setup_teleport > 0)
+            if (last_game_start_was_new() && !_is_player_at_spawn && c_setup_teleport > 0 && setup_help_teleport_cooldown == 0)
             {
                 c_setup_teleport--;
                 logger.info("setup helper teleport back to spawn, remaining={}",c_setup_teleport);
 
-                RE::Actor* actor = get_player_actor();     
-                if (actor) actor->SetPosition(ROL_spawn_pos, true);
+                RE::Actor* actor = get_player_actor();
+                RE::NiPoint3 p = cfg.spawn_pos;
+                p.z += cfg.tp_above_spawn; // a little above so player can fall down vs spawning in the ground for tall characters
+                if (actor) actor->SetPosition(p, true);
                 setup_help_teleport_message_countdown = 2;
+                setup_help_teleport_cooldown = 5;
             }
+            if (setup_help_teleport_cooldown > 0) --setup_help_teleport_cooldown;
 
             if (setup_help_teleport_message_countdown > 0)
             {
                 if (--setup_help_teleport_message_countdown == 0)
                 {
-                    std::string msg_long = "please finish setup\r\nbefore moving around\r\nsee the guide on the website, step 5";
-                    std::string msg_short = "please finish setup before moving";
-
-                    // Show a "Debug Notification" (displays in the top-left corner of the game)
-                    RE::DebugNotification(msg_short.c_str());
-
-                    // Popup a "Debug MessageBox" (with an OK button)
-                    RE::DebugMessageBox(msg_long.c_str());
+                    show_notification(cfg.msg.move_short);
+                    show_message_box(cfg.msg.move_long); // please dont move
+                    show_message_box(cfg.msg.setup); // setup guide
                 }
             }
 
@@ -239,10 +236,56 @@ public:
 
 // ***** config/.ini file
 
-    CSimpleIniA iniFile; // see SimpleIni.h : vcpkg https://github.com/brofield/simpleini
+    // ROL charcreate during: 5576.5,-17423.7,4517.7,r=127.7 scene=null
+    // ROL charcreate after:  5580.3,-17413.1,4575.9,r=1 (firstperson)
+    // ROL charcreate after:  5580.5,-17421.6,4563.7,r=75.7 (3rdperson)
+    // ROL walk 2 steps    :  5582.7,-17542.4,4548.7,r=74.5 (3rdperson) , x+-2 y+-120 z+-15
+    struct {
+        RE::NiPoint3 spawn_pos{5575.0f,-17415.0f,4550.0f};
+        float dist_starting_area = 15000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet) : seen d=7500 on other side from start
+        float dist_spawn_point = 300.0f; // 2 steps ~ 120
+        float tp_above_spawn = 100.0f; // teleport a little above so player can fall down vs spawning in the ground for tall characters
+        int max_setup_teleport = 3; // teleport up to 3 times
+        int min_pagefile_GB = 23;
+        struct {
+            std::string setup; // ..wait, save, load mcm recorder, wait, save, load
+            std::string pagefile; // ..20 GB, "sysdm.cpl ,3" ..
+            std::string overlay; // if you experience crashes, try disablign overlay apps like..
+            std::string move_long = "please finish setup\nbefore moving around"; // see the guide on the website, step 5
+            std::string move_short = "please finish setup before moving";
+            
+            // overlay msg box, currently unused as detection isnt reliable (process stays loaded after disable, need reboot or detect if bound etc)
+            std::string overlay_msgbox_steam     = "[FGTweak] Overlay Warning: Steam\nplease make sure 'steam overlay while ingame'\nis disabled in steam library (rclick skyrim: setting : general)";
+            std::string overlay_msgbox_discord   = "[FGTweak] Overlay Warning: Discord\nif you have discord we recommend\ndisabling 'game overlay' in the settings";
+            std::string overlay_msgbox_other_n_n = "[FGTweak] Overlay Warning: {}\nplease make sure you have disabled overlay apps like {}";
+        } msg;
+    } cfg;
+
+    CSimpleIniA ini; // see SimpleIni.h : vcpkg https://github.com/brofield/simpleini
     void load_settings() {
-        iniFile.LoadFile(L"Data/SKSE/Plugins/FGTweak.ini"); // NOTE i think while running, .ini files are visible under Data/SKSE/..
-        // const char *key_value = iniFile.GetValue("MyKeyName", "MyDefaultValue");
+        ini.SetUnicode(); // optional, but recommended
+        ini.SetMultiLine();
+        SI_Error rc = ini.LoadFile(L"Data/SKSE/Plugins/FGTweak.ini");
+        if (rc < 0) { logger.info("Failed to load INI file"); return; }
+
+        { auto& v = cfg.msg.setup;                      v = ini.GetValue("Messages", "setup", v.c_str()); }
+        { auto& v = cfg.msg.pagefile;                   v = ini.GetValue("Messages", "pagefile", v.c_str()); }
+        { auto& v = cfg.msg.overlay;                    v = ini.GetValue("Messages", "overlay", v.c_str()); }
+        { auto& v = cfg.msg.move_long;                  v = ini.GetValue("Messages", "move_long", v.c_str()); }
+        { auto& v = cfg.msg.move_short;                 v = ini.GetValue("Messages", "move_short", v.c_str()); }
+        { auto& v = cfg.msg.overlay_msgbox_steam;       v = ini.GetValue("Messages", "overlay_msgbox_steam", v.c_str()); }
+        { auto& v = cfg.msg.overlay_msgbox_discord;     v = ini.GetValue("Messages", "overlay_msgbox_discord", v.c_str()); }
+        { auto& v = cfg.msg.overlay_msgbox_other_n_n;   v = ini.GetValue("Messages", "overlay_msgbox_other_n_n", v.c_str()); }
+
+        { auto& v = cfg.spawn_pos.x;        v = (float)ini.GetDoubleValue("Config", "spawn_pos_x", v); }
+        { auto& v = cfg.spawn_pos.y;        v = (float)ini.GetDoubleValue("Config", "spawn_pos_y", v); }
+        { auto& v = cfg.spawn_pos.z;        v = (float)ini.GetDoubleValue("Config", "spawn_pos_z", v); }
+        { auto& v = cfg.dist_starting_area; v = (float)ini.GetDoubleValue("Config", "dist_starting_area", v); }
+        { auto& v = cfg.dist_spawn_point;   v = (float)ini.GetDoubleValue("Config", "dist_spawn_point", v); }
+        { auto& v = cfg.tp_above_spawn;     v = (float)ini.GetDoubleValue("Config", "tp_above_spawn", v); }
+        { auto& v = cfg.max_setup_teleport; v = (int)  ini.GetLongValue(  "Config", "max_setup_teleport", v); }
+        { auto& v = cfg.min_pagefile_GB;    v = (int)  ini.GetLongValue(  "Config", "min_pagefile_GB", v); }
+        logger.info("settings loaded");
     }
 
 // ***** skse events
@@ -318,12 +361,20 @@ public:
 
     void on_main_menu (bool opening)
     {
+        logger.info("on_main_menu opening={}",opening);
         if (opening) on_main_menu_check();
+    }
+
+    void on_race_menu (bool opening)
+    {
+        logger.info("on_race_menu opening={}",opening);
+        if (!opening && last_game_start_was_new()) on_char_create_done();
     }
 
     void on_menu_open_close (std::string menuName,bool opening)
     {
         if (menuName == "Main Menu") on_main_menu(opening);
+        if (menuName == "RaceSex Menu") on_race_menu(opening);
         if (!enabled_setup_help) return;
         if (ignore_menu.contains(menuName)) return;
         // bool is_racemenu = menuName == "RaceSex Menu";
@@ -353,17 +404,13 @@ public:
         // logger.info("niav={}",niav?"valid":"null");
         if (niav)
         {
-            auto p0 = ROL_spawn_pos;
+            auto p0 = cfg.spawn_pos;
             RE::NiPoint3 pos = niav->worldBound.center;
             float d = pos.GetDistance(p0);
             update_player_pos();
             bool in_rol = _is_player_in_rol;
             bool in_cage = _is_player_at_spawn;
             logger.info("bound={} d={} in_rol={} in_cage={}",str(niav->worldBound),d,in_rol,in_cage); 
-            // ROL charcreate during: 5576.5,-17423.7,4517.7,r=127.7 scene=null
-            // ROL charcreate after:  5580.3,-17413.1,4575.9,r=1 (firstperson)
-            // ROL charcreate after:  5580.5,-17421.6,4563.7,r=75.7 (3rdperson)
-            // ROL walk 2 steps    :  5582.7,-17542.4,4548.7,r=74.5 (3rdperson) , x+-2 y+-120 z+-15
         }
         
         #ifdef ENABLE_QUEST_LIST
@@ -412,10 +459,6 @@ public:
     bool _has_player_pos = false;
     bool _is_player_in_rol = false;
     bool _is_player_at_spawn = false;
-    
-    const RE::NiPoint3 ROL_spawn_pos{5575.0f,-17411.0f,4683.0f}; // z+140 = in the air during jump so player can fall down to the ground vs height
-    const float dist_ROL_area = 15000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet) : seen d=7500 on other side from start
-    const float dist_ROL_spawn = 200.0f; // 2 steps ~ 120
 
     bool update_player_pos ()
     {
@@ -424,9 +467,9 @@ public:
         RE::NiAVObject* niav = actor->Get3D2();
         if (!niav) return false;
         RE::NiPoint3 pos = niav->worldBound.center;
-        float d = pos.GetDistance(ROL_spawn_pos);
-        _is_player_in_rol = d < dist_ROL_area;
-        _is_player_at_spawn = d < dist_ROL_spawn;
+        float d = pos.GetDistance(cfg.spawn_pos);
+        _is_player_in_rol   = d < cfg.dist_starting_area;
+        _is_player_at_spawn = d < cfg.dist_spawn_point;
         if (!_has_player_pos)
         {
             logger.info("update_player_pos first: d={} rol={} spawn={} pos={}",d,_is_player_in_rol,_is_player_at_spawn,str(pos));
@@ -519,6 +562,24 @@ public:
 
     template <typename T>
     const T* my_error_if_null (const char* name, const T* p) { if (!p) logger.info("{}=null",name); return p; };
+
+    // Popup a "Debug MessageBox" (with an OK button)
+    void show_message_box (std::string msg)
+    {
+        if (msg.empty()) return;
+        // TODO: multiline message usually only has \n, does that work or do we have to replace them with \r\n ?
+        RE::DebugMessageBox(msg.c_str());
+    }
+    
+    // Show a "Debug Notification" (displays in the top-left corner of the game)
+    void show_notification (std::string msg) // can be multiline, reverse order so its easier to read
+    {
+        if (msg.empty()) return;
+        std::vector<std::string> v_lines = str_split(msg,"\n");
+        for (auto it = v_lines.rbegin(); it != v_lines.rend(); ++it) {
+            RE::DebugNotification(it->c_str());
+        }
+    }
 
 // ***** papyrus
 

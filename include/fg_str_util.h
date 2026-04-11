@@ -13,3 +13,25 @@ std::string str_lower (std::string s)
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
     return s;
 }
+
+inline std::vector<std::string> str_split(std::string_view text, std::string_view delim = "\n")
+{
+    std::vector<std::string> parts;
+
+    if (delim.empty()) {
+        parts.emplace_back(text);
+        return parts;
+    }
+
+    size_t start = 0;
+    while (true) {
+        const size_t end = text.find(delim, start);
+        if (end == std::string_view::npos) {
+            parts.emplace_back(text.substr(start));
+            return parts;
+        }
+
+        parts.emplace_back(text.substr(start, end - start));
+        start = end + delim.size();
+    }
+}

@@ -102,7 +102,8 @@ if(DEFINED OUTPUT_FOLDER)
         POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${DESTINATION_FOLDER}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${PROJECT_NAME}>" "${DESTINATION_FOLDER}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
-        COMMENT "Copying DLL to destination folder ${DESTINATION_FOLDER}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/ini_file/FGTweak.ini" "${DESTINATION_FOLDER}/FGTweak.ini"
+        COMMENT "Copying DLL and .ini to destination folder ${DESTINATION_FOLDER}"
         VERBATIM
     )
 

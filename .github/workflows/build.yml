@@ -74,7 +74,8 @@ jobs:
         run: |
           $artifactRoot = "${{ github.workspace }}\artifact\FGTweak\SKSE\Plugins"
           New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
-          Copy-Item "build/ci-release/FGTweak.dll" "$artifactRoot\FGTweak.dll"
+          Copy-Item -ErrorAction Stop "${{ github.workspace }}\build\ci-release\FGTweak.dll" "$artifactRoot\FGTweak.dll"
+          Copy-Item -ErrorAction Stop "${{ github.workspace }}\ini_file\FGTweak.ini" "$artifactRoot\FGTweak.ini"
 
       - name: Create release zip
         if: startsWith(github.ref, 'refs/tags/v')
