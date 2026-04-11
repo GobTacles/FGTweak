@@ -7,6 +7,7 @@ inline std::string str (const RE::NiPoint3&         o) { return std::format("({}
 inline std::string str (const RE::NiTransform&      o) { return std::format("(t={},...)",str(o.translate)); }
 inline std::string str (const RE::NiBound&          o) { return std::format("({},r={})",str(o.center),o.radius); }
 inline std::string str (const RE::BSFixedString&    o) { return std::format("{}",std::string_view{o}); }
+inline std::string str (const RE::FormID&           o) { return std::format("0x{:08X}", static_cast<std::uint32_t>(o)); } // std::uint32_t
 
 std::string str_lower (std::string s)
 {

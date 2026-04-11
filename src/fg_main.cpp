@@ -6,6 +6,7 @@
 #include "fg_notification.h"
 #include "fg_enable.h"
 
+// TODO: step_loop_stop when enabled_setup_help is disabled  .. overlay delayed? (and step_loop_start in on_game_start)
 // note: check pagefile > 20gb
 // note: warn if overlay apps are running
 // idea : maybe we can just list running quests and detect mcm recorder script running?
@@ -152,7 +153,7 @@ public:
             
         //  medal, GeForce Experience, Overwolf, MSI Afterburner.
         auto ow_warn_aux = [this](std::string n) {
-            std::string msg = std::format(overlay_msgbox_other_n_n,n,n);
+            std::string msg = std::format(cfg.msg.overlay_msgbox_other_n_n,n,n);
             show_message_box(msg);
         };
         if (has_proc(v_proc,{"medal"})          ) ow_warn_aux("Medal.TV");
@@ -247,7 +248,8 @@ public:
         float dist_spawn_point = 300.0f; // 2 steps ~ 120
         float tp_above_spawn = 100.0f; // teleport a little above so player can fall down vs spawning in the ground for tall characters
         int max_setup_teleport = 3; // teleport up to 3 times
-        int min_pagefile_GB = 23;
+        int min_pagefile_GB = 20;
+        std::string starting_area_editorId = "RealmLorkhan"; // Realm of Lorkhan = starting area
         struct {
             std::string setup; // ..wait, save, load mcm recorder, wait, save, load
             std::string pagefile; // ..20 GB, "sysdm.cpl ,3" ..
@@ -255,10 +257,13 @@ public:
             std::string move_long = "please finish setup\nbefore moving around"; // see the guide on the website, step 5
             std::string move_short = "please finish setup before moving";
             
+            
+            #ifdef ENABLE_OVERLAY_MSGBOX
             // overlay msg box, currently unused as detection isnt reliable (process stays loaded after disable, need reboot or detect if bound etc)
             std::string overlay_msgbox_steam     = "[FGTweak] Overlay Warning: Steam\nplease make sure 'steam overlay while ingame'\nis disabled in steam library (rclick skyrim: setting : general)";
             std::string overlay_msgbox_discord   = "[FGTweak] Overlay Warning: Discord\nif you have discord we recommend\ndisabling 'game overlay' in the settings";
             std::string overlay_msgbox_other_n_n = "[FGTweak] Overlay Warning: {}\nplease make sure you have disabled overlay apps like {}";
+            #endif
         } msg;
     } cfg;
 
@@ -269,15 +274,6 @@ public:
         SI_Error rc = ini.LoadFile(L"Data/SKSE/Plugins/FGTweak.ini");
         if (rc < 0) { logger.info("Failed to load INI file"); return; }
 
-        { auto& v = cfg.msg.setup;                      v = ini.GetValue("Messages", "setup", v.c_str()); }
-        { auto& v = cfg.msg.pagefile;                   v = ini.GetValue("Messages", "pagefile", v.c_str()); }
-        { auto& v = cfg.msg.overlay;                    v = ini.GetValue("Messages", "overlay", v.c_str()); }
-        { auto& v = cfg.msg.move_long;                  v = ini.GetValue("Messages", "move_long", v.c_str()); }
-        { auto& v = cfg.msg.move_short;                 v = ini.GetValue("Messages", "move_short", v.c_str()); }
-        { auto& v = cfg.msg.overlay_msgbox_steam;       v = ini.GetValue("Messages", "overlay_msgbox_steam", v.c_str()); }
-        { auto& v = cfg.msg.overlay_msgbox_discord;     v = ini.GetValue("Messages", "overlay_msgbox_discord", v.c_str()); }
-        { auto& v = cfg.msg.overlay_msgbox_other_n_n;   v = ini.GetValue("Messages", "overlay_msgbox_other_n_n", v.c_str()); }
-
         { auto& v = cfg.spawn_pos.x;        v = (float)ini.GetDoubleValue("Config", "spawn_pos_x", v); }
         { auto& v = cfg.spawn_pos.y;        v = (float)ini.GetDoubleValue("Config", "spawn_pos_y", v); }
         { auto& v = cfg.spawn_pos.z;        v = (float)ini.GetDoubleValue("Config", "spawn_pos_z", v); }
@@ -286,6 +282,19 @@ public:
         { auto& v = cfg.tp_above_spawn;     v = (float)ini.GetDoubleValue("Config", "tp_above_spawn", v); }
         { auto& v = cfg.max_setup_teleport; v = (int)  ini.GetLongValue(  "Config", "max_setup_teleport", v); }
         { auto& v = cfg.min_pagefile_GB;    v = (int)  ini.GetLongValue(  "Config", "min_pagefile_GB", v); }
+        { auto& v = cfg.starting_area_editorId;         v = ini.GetValue("Config", "starting_area_editorId", v.c_str()); }
+
+        { auto& v = cfg.msg.setup;                      v = ini.GetValue("Messages", "setup", v.c_str()); }
+        { auto& v = cfg.msg.pagefile;                   v = ini.GetValue("Messages", "pagefile", v.c_str()); }
+        { auto& v = cfg.msg.overlay;                    v = ini.GetValue("Messages", "overlay", v.c_str()); }
+        { auto& v = cfg.msg.move_long;                  v = ini.GetValue("Messages", "move_long", v.c_str()); }
+        { auto& v = cfg.msg.move_short;                 v = ini.GetValue("Messages", "move_short", v.c_str()); }
+        
+        #ifdef ENABLE_OVERLAY_MSGBOX
+        { auto& v = cfg.msg.overlay_msgbox_steam;       v = ini.GetValue("Messages", "overlay_msgbox_steam", v.c_str()); }
+        { auto& v = cfg.msg.overlay_msgbox_discord;     v = ini.GetValue("Messages", "overlay_msgbox_discord", v.c_str()); }
+        { auto& v = cfg.msg.overlay_msgbox_other_n_n;   v = ini.GetValue("Messages", "overlay_msgbox_other_n_n", v.c_str()); }
+        #endif
         logger.info("settings loaded");
     }
 
@@ -468,12 +477,13 @@ public:
 
 // ***** actor utils
 
-    // TODO: cache in bool once we have a 100msec step function
     bool is_player_in_rol () { update_player_pos(); return _is_player_in_rol; }
 
     bool _has_player_pos = false;
     bool _is_player_in_rol = false;
     bool _is_player_at_spawn = false;
+    std::optional<RE::FormID> _starting_area_formid;
+    std::optional<RE::FormID> _last_player_cell;
 
     bool update_player_pos ()
     {
@@ -481,10 +491,24 @@ public:
         if (!actor) return false;
         RE::NiAVObject* niav = actor->Get3D2();
         if (!niav) return false;
+        RE::TESObjectCELL* cell = actor->GetParentCell();
+        if (!cell) return false;
+        RE::FormID cell_formID = cell->formID; // NOTE: formID prefix depends on load order
+        if (!_last_player_cell || (*_last_player_cell != cell_formID)) // check on change vs new game after load
+        {
+            _last_player_cell = cell_formID;
+            std::string editorID = cell->GetFormEditorID();
+            bool is_rol = last_game_start_was_new();
+            if (editorID == cfg.starting_area_editorId) is_rol = true; // Realm of Lorkhan = starting area
+            if (is_rol) _starting_area_formid = cell_formID; // 0x2401A5C6, depends on version + profile, prefix from load order
+            logger.info("player_cell formID={} is_rol={} EditorID='{}'",str(cell_formID),is_rol,editorID);
+        }
+  
         RE::NiPoint3 pos = niav->worldBound.center;
         float d = pos.GetDistance(cfg.spawn_pos);
-        _is_player_in_rol   = d < cfg.dist_starting_area;
-        _is_player_at_spawn = d < cfg.dist_spawn_point;
+        
+        _is_player_in_rol   = _starting_area_formid && (cell_formID == *_starting_area_formid) && d < cfg.dist_starting_area;
+        _is_player_at_spawn = _is_player_in_rol && d < cfg.dist_spawn_point;
         if (!_has_player_pos)
         {
             logger.info("update_player_pos first: d={} rol={} spawn={} pos={}",d,_is_player_in_rol,_is_player_at_spawn,str(pos));
@@ -582,7 +606,6 @@ public:
     void show_message_box (std::string msg)
     {
         if (msg.empty()) return;
-        // TODO: multiline message usually only has \n, does that work or do we have to replace them with \r\n ?
         RE::DebugMessageBox(msg.c_str());
     }
     
