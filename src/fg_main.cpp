@@ -575,11 +575,23 @@ public:
     std::jthread stepThread;
     std::atomic_bool _step_queued{ false };
     std::atomic_bool _step_enabled{ true };
+    std::mutex _step_mtx;
 
-    void set_step_enabled (bool v) { _step_enabled.store(v); logger.info("set_step_enabled {}",v); }
+    void set_step_enabled (bool v)
+    {
+        bool v_old = _step_enabled.exchange(v);
+        logger.info("set_step_enabled {}",v);
+        if (v_old != v)
+        {
+            if (v) step_loop_start(); else step_loop_stop();
+        }
+    }
 
     void step_loop_start()
     {
+        logger.info("step_loop_start");
+        std::lock_guard lg{_step_mtx};
+        if (stepThread.joinable()) { logger.info("step_loop still running?"); return; }
         auto* task = SKSE::GetTaskInterface();
         if (!task) { logger.info("TaskInterface=null"); return; }
 
@@ -601,10 +613,20 @@ public:
 
     void step_loop_stop()
     {
-        if (stepThread.joinable()) {
+        logger.info("step_loop_stop");
+        
+        // NOTE: jthread destruction or join would block for up to 200msec, so move it and join in a helper thread
+        std::jthread old;
+        {
+            std::lock_guard lg{_step_mtx};
+            if (!stepThread.joinable()) return;
             stepThread.request_stop();
-            stepThread.join();
+            old = std::move(stepThread);
         }
+
+        std::thread([t = std::move(old)]() mutable {
+            if (t.joinable()) t.join();
+        }).detach();
     }
 
 // ***** utils
