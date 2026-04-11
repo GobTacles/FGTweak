@@ -201,7 +201,8 @@ public:
             if (!_has_player_pos) return; // still early, before player+racemenu is fully loaded
             if (_has_player_pos && !_is_player_in_rol) { logger.info("not in starting area -> disabling setup_help"); enabled_setup_help = false; return; }
 
-            if (last_game_start_was_new() && !_is_player_at_spawn && c_setup_teleport > 0 && setup_help_teleport_cooldown == 0)
+            bool enable_setup_teleport = last_game_start_was_new() || previous_game_start_was_new();
+            if (enable_setup_teleport && !_is_player_at_spawn && c_setup_teleport > 0 && setup_help_teleport_cooldown == 0)
             {
                 c_setup_teleport--;
                 logger.info("setup helper teleport back to spawn, remaining={}",c_setup_teleport);
@@ -290,12 +291,26 @@ public:
 
 // ***** skse events
 
+    bool _previous_game_start_was_new = false;
     std::optional<std::uint32_t> game_start_imsg;
     bool has_game_start () { return game_start_imsg?true:false; }
     bool last_game_start_was_new  () { return has_game_start() && *game_start_imsg == SKSE::MessagingInterface::kNewGame; }
     bool last_game_start_was_load () { return has_game_start() && (*game_start_imsg == SKSE::MessagingInterface::kPreLoadGame || *game_start_imsg == SKSE::MessagingInterface::kPostLoadGame); }
     bool last_game_start_was_pre_load () { return has_game_start() && *game_start_imsg == SKSE::MessagingInterface::kPreLoadGame; }
-    void notify_game_start (std::uint32_t imsg) { game_start_imsg = imsg; on_game_start(imsg); }
+    bool previous_game_start_was_new () { return _previous_game_start_was_new; } // true if the game start BEFORE this one was new game. for setup helper
+
+
+    void notify_game_start (std::uint32_t imsg)
+    {
+        if (imsg != SKSE::MessagingInterface::kPostLoadGame)
+        {
+            // only update on new and PreLoad , not PostLoad
+            _previous_game_start_was_new = game_start_imsg && (game_start_imsg == SKSE::MessagingInterface::kNewGame);
+            logger.info("updating previous_game_start_was_new -> {}",_previous_game_start_was_new);
+        }
+        game_start_imsg = imsg;
+        on_game_start(imsg);
+    }
 
     // MessagingInterface listener : input=hotkeys, kDataLoaded
     void on_msg_interface_msg (SKSE::MessagingInterface::Message *message)

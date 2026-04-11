@@ -4,9 +4,10 @@
 
 ## What does it do?
 
+- after new game + character create is finished, shows a message box with setup guide steps
 - after a new game was started, reminds the player to finish setup before moving: messagebox + teleport, max 3 times
 - messagebox warning about pagefile below 20gb when mainmenu is first loaded
-- subtle notification after 20s after loading the game if overlay processes are detected
+- subtle notification after 20s after loading any saved game if overlay processes are detected
 
 ## developer web quickstart
 
