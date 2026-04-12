@@ -572,10 +572,10 @@ public:
 
 // ***** step thread
 
-    std::jthread stepThread;
     std::atomic_bool _step_queued{ false };
     std::atomic_bool _step_enabled{ true };
     std::mutex _step_mtx;
+    std::jthread _step_loop_thread;
 
     void set_step_enabled (bool v)
     {
@@ -591,22 +591,27 @@ public:
     {
         logger.info("step_loop_start");
         std::lock_guard lg{_step_mtx};
-        if (stepThread.joinable()) { logger.info("step_loop still running?"); return; }
-        auto* task = SKSE::GetTaskInterface();
-        if (!task) { logger.info("TaskInterface=null"); return; }
+        if (_step_loop_thread.joinable()) {
+            logger.info("step_loop still running? request stop and join...");
+            _step_loop_thread.request_stop();
+            _step_loop_thread.join(); 
+        }
 
-        stepThread = std::jthread([this](std::stop_token stopToken) {
+        _step_loop_thread = std::jthread([this](std::stop_token stopToken) {
             using namespace std::chrono_literals;
 
+            auto task = SKSE::GetTaskInterface();
+            if (!task) return;
+            
             while (!stopToken.stop_requested()) {
                 std::this_thread::sleep_for(200ms);
                 if (stopToken.stop_requested()) { break; }
                 if (!_step_enabled.load()) continue;
-
+                
                 // Prevent piling up tasks if the previous step has not run yet.
                 if (_step_queued.exchange(true)) { continue; }
 
-                SKSE::GetTaskInterface()->AddTask([this]() { _step_queued = false; step_200msec(); });
+                if (task) task->AddTask([this]() { _step_queued = false; step_200msec(); });
             }
         });
     }
@@ -615,18 +620,10 @@ public:
     {
         logger.info("step_loop_stop");
         
-        // NOTE: jthread destruction or join would block for up to 200msec, so move it and join in a helper thread
-        std::jthread old;
-        {
-            std::lock_guard lg{_step_mtx};
-            if (!stepThread.joinable()) return;
-            stepThread.request_stop();
-            old = std::move(stepThread);
-        }
-
-        std::thread([t = std::move(old)]() mutable {
-            if (t.joinable()) t.join();
-        }).detach();
+        // NOTE: jthread destruction or join would block for up to 200msec, so just request stop without waiting for join
+        std::lock_guard lg{_step_mtx};
+        if (!_step_loop_thread.joinable()) return;
+        _step_loop_thread.request_stop();
     }
 
 // ***** utils
