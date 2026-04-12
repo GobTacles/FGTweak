@@ -596,13 +596,13 @@ public:
             _step_loop_thread.request_stop();
             _step_loop_thread.join(); 
         }
+        
+        auto task = _registry.skse.task;
+        if (!task) return;
 
-        _step_loop_thread = std::jthread([this](std::stop_token stopToken) {
+        _step_loop_thread = std::jthread([this,task](std::stop_token stopToken) {
             using namespace std::chrono_literals;
 
-            auto task = SKSE::GetTaskInterface();
-            if (!task) return;
-            
             while (!stopToken.stop_requested()) {
                 std::this_thread::sleep_for(200ms);
                 if (stopToken.stop_requested()) { break; }
