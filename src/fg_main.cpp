@@ -120,7 +120,7 @@ public:
     }
 
     // return true if still waiting for something, step loop might be stopped otherwise
-    bool overlay_warning_notification_step ()
+    bool step_overlay_warning_notification_delayed ()
     {
         #ifdef ENABLE_OVERLAY_CHECK
         if (overlay_warning_notification_countdown == 0) return false;
@@ -165,6 +165,13 @@ public:
         #endif
     }
     
+// ***** time utils
+
+    using tMyClock = std::chrono::steady_clock;
+    using tMyTime = tMyClock::time_point;
+    std::optional<tMyTime> time_setup_guide_message_delayed;
+    tMyTime now () { return tMyClock::now(); }
+
 // ***** step
 
     bool enabled_setup_help = true;
@@ -185,7 +192,17 @@ public:
     void on_char_create_done ()
     {
         logger.info("on_char_create_done");
+        using namespace std::chrono_literals;
+        time_setup_guide_message_delayed = now() + 3s;
+    }
+
+    bool step_setup_guide_message_delayed ()
+    {
+        if (!time_setup_guide_message_delayed) return false;
+        if (now() < *time_setup_guide_message_delayed) return true;
+        time_setup_guide_message_delayed.reset();
         show_message_box(cfg.msg.setup); // setup guide
+        return false;
     }
 
     void step_200msec()
@@ -193,7 +210,8 @@ public:
         if (!has_game_start()) return; // still early in skyrim main menu
         if (last_game_start_was_pre_load()) return; // wait until load is finished
         bool busy = false;
-        if (overlay_warning_notification_step()) busy = true; // just delayed notification
+        if (step_overlay_warning_notification_delayed()) busy = true; // just delayed notification
+        if (step_setup_guide_message_delayed()) busy = true; // just delayed notification
         
         if (!enabled_setup_help && !busy) set_step_enabled(false); // no more steps will be called until on_game_start
 
