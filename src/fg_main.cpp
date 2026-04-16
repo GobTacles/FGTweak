@@ -49,14 +49,13 @@ public:
         on_main_menu_check_enabled = false; // only once
         
         // PageFile warning
-        [[maybe_unused]] constexpr uint64_t gb = 1ull * 1000 * 1000 * 1000;  // 1 gb (decimal, base 1000)
-        [[maybe_unused]] constexpr uint64_t mb = 1ull * 1000 * 1000;         // 1 mb (decimal, base 1000)
-        const uint64_t pagefile_min = ((uint64_t)cfg.min_pagefile_MB) * mb; // 20'000 mb as number of bytes
+        constexpr uint64_t MB = 1ull * 1024 * 1024; // binary, base 1024, MiB really, but windows happily lists this as MB in pagefile settings
+        const uint64_t pagefile_min = ((uint64_t)cfg.min_pagefile_MB) * MB; // 20'000 MB as number of bytes
         std::optional<fg_memory_info> mi = win_get_memory_info();
         bool pagefile_too_small = mi && (mi->page_file_size < pagefile_min);
-        std::string meminfo = mi ? std::format("physical memory: {} MB, page file: {} MB",
-                mi->physical_memory/mb,
-                mi->page_file_size/mb
+        std::string meminfo = mi ? std::format("physical memory: {} MiB, page file: {} MiB",
+                mi->physical_memory/MB,
+                mi->page_file_size/MB
             ) : "unknown";
 
         logger.info("on_main_menu_check pagefile_too_small={} meminfo={}",pagefile_too_small,meminfo);
