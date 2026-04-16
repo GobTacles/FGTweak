@@ -11,3 +11,6 @@
 
 // #define ENABLE_NOTIFICATION_HOOK
 // #define ENABLE_QUEST_LIST
+
+// #define SETUP_GUIDE_MESSAGE_DELAYED // actually blocks some of the setup scripts when delayed until its closed
+// NOTE: so show setup message immediately and add line "Please close this message box while waiting so the setup can run."

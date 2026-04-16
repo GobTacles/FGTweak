@@ -193,15 +193,21 @@ public:
     {
         logger.info("on_char_create_done");
         using namespace std::chrono_literals;
+        #ifdef SETUP_GUIDE_MESSAGE_DELAYED
         time_setup_guide_message_delayed = now() + 3s;
+        #else
+        show_message_box(cfg.msg.setup); // setup guide
+        #endif
     }
 
     bool step_setup_guide_message_delayed ()
     {
+        #ifdef SETUP_GUIDE_MESSAGE_DELAYED
         if (!time_setup_guide_message_delayed) return false;
         if (now() < *time_setup_guide_message_delayed) return true;
         time_setup_guide_message_delayed.reset();
         show_message_box(cfg.msg.setup); // setup guide
+        #endif
         return false;
     }
 
@@ -271,7 +277,7 @@ public:
         float dist_starting_area = 15000.0f; // detect if we are in starting area at all (i havent found a dimension or cell id yet) : seen d=7500 on other side from start
         float dist_spawn_point = 300.0f; // 2 steps ~ 120
         float tp_above_spawn = 100.0f; // teleport a little above so player can fall down vs spawning in the ground for tall characters
-        int max_setup_teleport = 3; // teleport up to 3 times
+        int max_setup_teleport = 5; // teleport up to 3 times
         int min_pagefile_MB = 20000;
         std::string starting_area_editorId = "RealmLorkhan"; // Realm of Lorkhan = starting area
         struct {
