@@ -49,13 +49,14 @@ public:
         on_main_menu_check_enabled = false; // only once
         
         // PageFile warning
-        constexpr uint64_t gb = 1ull * 1024 * 1024 * 1024; // 20 GB
-        const uint64_t pagefile_min = ((uint64_t)cfg.min_pagefile_GB) * gb; // 20gb as number of bytes
+        [[maybe_unused]] constexpr uint64_t gb = 1ull * 1000 * 1000 * 1000;  // 1 gb (decimal, base 1000)
+        [[maybe_unused]] constexpr uint64_t mb = 1ull * 1000 * 1000;         // 1 mb (decimal, base 1000)
+        const uint64_t pagefile_min = ((uint64_t)cfg.min_pagefile_MB) * mb; // 20'000 mb as number of bytes
         std::optional<fg_memory_info> mi = win_get_memory_info();
         bool pagefile_too_small = mi && (mi->page_file_size < pagefile_min);
-        std::string meminfo = mi ? std::format("physical memory: {} GB, page file: {} GB",
-                mi->physical_memory/gb,
-                mi->page_file_size/gb
+        std::string meminfo = mi ? std::format("physical memory: {} MB, page file: {} MB",
+                mi->physical_memory/mb,
+                mi->page_file_size/mb
             ) : "unknown";
 
         logger.info("on_main_menu_check pagefile_too_small={} meminfo={}",pagefile_too_small,meminfo);
@@ -254,7 +255,7 @@ public:
         float dist_spawn_point = 300.0f; // 2 steps ~ 120
         float tp_above_spawn = 100.0f; // teleport a little above so player can fall down vs spawning in the ground for tall characters
         int max_setup_teleport = 3; // teleport up to 3 times
-        int min_pagefile_GB = 20;
+        int min_pagefile_MB = 20000;
         std::string starting_area_editorId = "RealmLorkhan"; // Realm of Lorkhan = starting area
         struct {
             std::string setup; // ..wait, save, load mcm recorder, wait, save, load
@@ -287,7 +288,7 @@ public:
         { auto& v = cfg.dist_spawn_point;   v = (float)ini.GetDoubleValue("Config", "dist_spawn_point", v); }
         { auto& v = cfg.tp_above_spawn;     v = (float)ini.GetDoubleValue("Config", "tp_above_spawn", v); }
         { auto& v = cfg.max_setup_teleport; v = (int)  ini.GetLongValue(  "Config", "max_setup_teleport", v); }
-        { auto& v = cfg.min_pagefile_GB;    v = (int)  ini.GetLongValue(  "Config", "min_pagefile_GB", v); }
+        { auto& v = cfg.min_pagefile_MB;    v = (int)  ini.GetLongValue(  "Config", "min_pagefile_MB", v); }
         { auto& v = cfg.starting_area_editorId;         v = ini.GetValue("Config", "starting_area_editorId", v.c_str()); }
 
         { auto& v = cfg.msg.setup;                      v = ini.GetValue("Messages", "setup", v.c_str()); }
@@ -576,6 +577,7 @@ public:
     std::atomic_bool _step_enabled{ true };
     std::mutex _step_mtx;
     std::jthread _step_loop_thread;
+    std::jthread _step_loop_thread_old;
 
     void set_step_enabled (bool v)
     {
@@ -592,9 +594,10 @@ public:
         logger.info("step_loop_start");
         std::lock_guard lg{_step_mtx};
         if (_step_loop_thread.joinable()) {
-            logger.info("step_loop still running? request stop and join...");
+            logger.info("step_loop still running? request stop and move to background");
             _step_loop_thread.request_stop();
-            _step_loop_thread.join(); 
+            _step_loop_thread_old = std::move(_step_loop_thread); // move the old loop thread to the background if it hasnt quite finished yet
+            // NOTE: old = x; can block if the old STILL hasnt finished yet, but we more than 200msec between step_loop_start calls
         }
         
         auto task = _registry.skse.task;
